@@ -474,7 +474,7 @@ class MapActivity : AppCompatActivity() {
                             object : OnLocationCameraTransitionListener {
                                 override fun onLocationCameraTransitionFinished(cameraMode: Int) {
                                     locationComponent?.zoomWhileTracking(16.24, 1000)
-                                    locationComponent?.tiltWhileTracking(48.0)
+                                    locationComponent?.tiltWhileTracking(56.0)
 
                                     val orientation = resources.configuration.orientation
                                     density = resources.displayMetrics.density
@@ -673,7 +673,9 @@ class MapActivity : AppCompatActivity() {
                             lastStepIndex = navigationViewModel.lastStepIndex.value ?: 0
                             distanceRemaining = navigationViewModel.lastDistanceRemaining.value ?: 0.0
 
-                            lastNavigationLocation = navigationViewModel.currentLocation.value ?: navigationlocation
+                            navigationlocation = navigationViewModel.currentLocation.value
+                            navigationlocation?.latitude = navigationViewModel.currentLocationLat.value
+                            navigationlocation?.longitude = navigationViewModel.currentLocationLng.value
 
                             startNavigationRoute()
 
@@ -689,7 +691,7 @@ class MapActivity : AppCompatActivity() {
                                 }
                             }
 
-                            locationSmoothAnimator?.animateToNewLocation(lastNavigationLocation!!)
+                            locationSmoothAnimator?.animateToNewLocation(navigationlocation!!)
 
                             if (isDataVisible) {
                                 saveStatus(true)
@@ -711,7 +713,9 @@ class MapActivity : AppCompatActivity() {
                             lastStepIndex = navigationViewModel.lastStepIndex.value ?: 0
                             distanceRemaining = navigationViewModel.lastDistanceRemaining.value ?: 0.0
 
-                            lastNavigationLocation = navigationViewModel.currentLocation.value ?: navigationlocation
+                            navigationlocation = navigationViewModel.currentLocation.value
+                            navigationlocation?.latitude = navigationViewModel.currentLocationLat.value
+                            navigationlocation?.longitude = navigationViewModel.currentLocationLng.value
 
                             startSimulationRoute()
 
@@ -727,7 +731,7 @@ class MapActivity : AppCompatActivity() {
                                 }
                             }
 
-                            locationSmoothAnimator?.animateToNewLocation(lastNavigationLocation!!)
+                            locationSmoothAnimator?.animateToNewLocation(navigationlocation!!)
 
                             if (isDataVisible) {
                                 saveStatus(true)
@@ -986,6 +990,8 @@ class MapActivity : AppCompatActivity() {
                 }
             } else {
                 navigationlocation = navigationViewModel.currentLocation.value ?: location
+                navigationlocation?.latitude = navigationViewModel.currentLocationLat.value
+                navigationlocation?.longitude = navigationViewModel.currentLocationLng.value
             }
         }
     }
@@ -1028,7 +1034,7 @@ class MapActivity : AppCompatActivity() {
                 object : OnLocationCameraTransitionListener {
                     override fun onLocationCameraTransitionFinished(cameraMode: Int) {
                         locationComponent?.zoomWhileTracking(16.24)
-                        locationComponent?.tiltWhileTracking(48.0)
+                        locationComponent?.tiltWhileTracking(56.0)
 
                         val orientation = resources.configuration.orientation
                         density = resources.displayMetrics.density
@@ -1449,11 +1455,7 @@ class MapActivity : AppCompatActivity() {
 
         lastRouteProgress = routeProgress
 
-        navigationViewModel.updateLastRouteProgress(lastRouteProgress)
-
-        lastNavigationLocation = location ?: return@ProgressChangeListener
-
-        navigationViewModel.updateLocation(lastNavigationLocation!!)
+        navigationViewModel.updateLocation(location, location.latitude, location.longitude)
 
         // Inisialisasi sekali di onCreate()
         val maneuverBannerManager = ManeuverBannerManager(
@@ -1476,8 +1478,6 @@ class MapActivity : AppCompatActivity() {
         if (::navigation.isInitialized) {
 
             if (isNavigationTurnByTurnMode) {
-
-                lastRouteProgress = navigationViewModel.lastRouteProgress.value ?: routeProgress
 
                 legProgress = lastRouteProgress.currentLegProgress() ?: return@ProgressChangeListener
                 stepProgress = legProgress.currentStepProgress() ?: return@ProgressChangeListener
@@ -1552,12 +1552,12 @@ class MapActivity : AppCompatActivity() {
                 directionsEta.text = "${timeNow}"
 
                 runOnUiThread {
-                    lastNavigationLocation = navigationViewModel.currentLocation.value ?: location
+                    navigationlocation = navigationViewModel.currentLocation.value ?: location
                     locationSmoothAnimator?.animateToNewLocation(
-                        lastNavigationLocation!!
+                        navigationlocation!!
                     )
                     routeNavigationCurrentSpeed.text =
-                        "${(lastNavigationLocation!!.speed * 3.6).toInt()}      km/h"
+                        "${(navigationlocation!!.speed * 3.6).toInt()}      km/h"
                 }
 
                 val targetStep = nextStep
@@ -1635,11 +1635,11 @@ class MapActivity : AppCompatActivity() {
 
                 // 5. PEMICU SUARA ADAPTIF & DINAMIS (Berdasarkan Kecepatan Nyata Kendaraan)
                 if (announcement.isNotEmpty()) {
-                    lastNavigationLocation = navigationViewModel.currentLocation.value ?: location
+                    navigationlocation = navigationViewModel.currentLocation.value ?: location
 
                     // Ambil kecepatan saat ini dalam m/s (meter per detik) dari objek location Anda
                     // Jika location null, berikan default kecepatan kota standar 30 km/jam (~8.3 m/s)
-                    val speedMetersPerSecond = lastNavigationLocation?.speed ?: 8.3f
+                    val speedMetersPerSecond = navigationlocation?.speed ?: 8.3f
 
                     /*
                         * Logika Waktu Reaksi (Waktu Mengemudi Menuju Belokan):
@@ -1931,7 +1931,6 @@ class MapActivity : AppCompatActivity() {
         navigationMapRoute?.removeRoute()
         navigationViewModel.clearRoute()
         navigationViewModel.clearRouteAlt()
-        navigationViewModel.clearLastRouteProgress()
         navigationViewModel.clearLastLegIndex()
         navigationViewModel.clearLastStepIndex()
         navigationViewModel.clearLastDistanceRemaining()

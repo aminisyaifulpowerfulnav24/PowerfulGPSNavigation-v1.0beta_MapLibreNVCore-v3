@@ -17,6 +17,8 @@ import com.mapbox.services.android.navigation.v5.navigation.MapboxNavigationOpti
 import com.mapbox.services.android.navigation.v5.routeprogress.ProgressChangeListener
 import com.mapbox.services.android.navigation.v5.routeprogress.RouteLegProgress
 import com.mapbox.services.android.navigation.v5.routeprogress.RouteProgress
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
 
 class NavigationViewModel(private val savedStateHandle: SavedStateHandle) : ViewModel() {
     private val _navigationLocationEngine = MutableLiveData<LocationEngine>()
@@ -35,6 +37,13 @@ class NavigationViewModel(private val savedStateHandle: SavedStateHandle) : View
     private val _currentLocation = MutableLiveData<Location>()
 
     var currentLocation: LiveData<Location> = _currentLocation
+
+    private val _currentLocationLat = MutableStateFlow<Double>(0.0)
+    var currentLocationLat: StateFlow<Double> = _currentLocationLat
+
+    private val _currentLocationLng = MutableStateFlow<Double>(0.0)
+    var currentLocationLng: StateFlow<Double> = _currentLocationLng
+
 
     private val _onNavigationRouteProgress = MutableLiveData<ProgressChangeListener>()
     var onNavigationRouteProgress: LiveData<ProgressChangeListener> = _onNavigationRouteProgress
@@ -196,11 +205,15 @@ class NavigationViewModel(private val savedStateHandle: SavedStateHandle) : View
         savedStateHandle.remove<Boolean>("IS_NAVIGATING")
     }
 
-    fun updateLocation(location: Location) {
+    fun updateLocation(location: Location, latitude: Double, longitude: Double) {
         _currentLocation.value = location
+        _currentLocationLat.value = latitude
+        _currentLocationLng.value = longitude
     }
 
     fun clearLocationData() {
         _currentLocation.value = null
+        _currentLocationLat.value = 0.0
+        _currentLocationLng.value = 0.0
     }
 }
