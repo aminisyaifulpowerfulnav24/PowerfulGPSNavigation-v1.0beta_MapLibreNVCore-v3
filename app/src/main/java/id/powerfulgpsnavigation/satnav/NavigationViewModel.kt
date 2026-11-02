@@ -41,9 +41,11 @@ class NavigationViewModel(private val savedStateHandle: SavedStateHandle) : View
     private val _currentLocationLat = MutableStateFlow<Double>(0.0)
     var currentLocationLat: StateFlow<Double> = _currentLocationLat
 
-    private val _currentLocationLng = MutableStateFlow<Double>(0.0)
+    private val _currentLocationLng = MutableStateFlow(0.0)
     var currentLocationLng: StateFlow<Double> = _currentLocationLng
 
+    private val _currentLocationBearing = MutableStateFlow(0f)
+    var currentLocationBearing: StateFlow<Float> = _currentLocationBearing
 
     private val _onNavigationRouteProgress = MutableLiveData<ProgressChangeListener>()
     var onNavigationRouteProgress: LiveData<ProgressChangeListener> = _onNavigationRouteProgress
@@ -89,6 +91,9 @@ class NavigationViewModel(private val savedStateHandle: SavedStateHandle) : View
                 .defaultMilestonesEnabled(false)
                 .build()
             mapboxNavigationInstance = MapboxNavigation(context.applicationContext, options)
+                .apply {
+                    this.snapEngine
+                }
         }
         return mapboxNavigationInstance!!
     }
@@ -141,12 +146,27 @@ class NavigationViewModel(private val savedStateHandle: SavedStateHandle) : View
         _onNavigationRouteProgress.value = null
     }
 
-    fun updateLastRouteProgress(progress: RouteProgress) {
-        _lastRouteProgress.value = progress
+    fun updateLastRouteProgress(progress: RouteProgress, legIndex: Int, stepIndex: Int, distanceRemaining: Double, nextStep: LegStep?, currentStep: LegStep) {
+        val oldLeg = lastLegIndex.value ?: 0
+        val oldStep = lastStepIndex.value ?: 0
+
+        if (legIndex > oldLeg || (legIndex == oldLeg && stepIndex >= oldStep)) {
+            _lastRouteProgress.value = progress
+            _lastLegIndex.value = legIndex
+            _lastStepIndex.value = stepIndex
+            _lastDistanceRemaining.value = distanceRemaining
+            _lastNextStep.value = nextStep
+            _lastCurrentStep.value = currentStep
+        }
     }
 
     fun clearLastRouteProgress() {
         _lastRouteProgress.value = null
+        _lastLegIndex.value = null
+        _lastStepIndex.value = null
+        _lastDistanceRemaining.value = null
+        _lastNextStep.value = null
+        _lastCurrentStep.value = null
     }
 
     fun setLastStepIndex(index: Int) {
@@ -205,15 +225,17 @@ class NavigationViewModel(private val savedStateHandle: SavedStateHandle) : View
         savedStateHandle.remove<Boolean>("IS_NAVIGATING")
     }
 
-    fun updateLocation(location: Location, latitude: Double, longitude: Double) {
+    fun updateLocation(location: Location, latitude: Double, longitude: Double, bearing: Float) {
         _currentLocation.value = location
         _currentLocationLat.value = latitude
         _currentLocationLng.value = longitude
+        _currentLocationBearing.value = bearing
     }
 
     fun clearLocationData() {
         _currentLocation.value = null
         _currentLocationLat.value = 0.0
         _currentLocationLng.value = 0.0
+        _currentLocationBearing.value = 0f
     }
 }
