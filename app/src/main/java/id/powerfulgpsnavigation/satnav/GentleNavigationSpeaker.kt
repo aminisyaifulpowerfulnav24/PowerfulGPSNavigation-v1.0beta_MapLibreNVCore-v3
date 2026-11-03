@@ -60,7 +60,7 @@ class GentleNavigationSpeaker(private val context: Context) : TextToSpeech.OnIni
 
         // SOLUSI: Bungkus parameter audio ke dalam Bundle agar dipaksa keluar ke speaker media
         val ttsParams = Bundle().apply {
-            putInt(TextToSpeech.Engine.KEY_PARAM_STREAM, AudioManager.AUDIOFOCUS_GAIN_TRANSIENT_MAY_DUCK)
+            putInt(TextToSpeech.Engine.KEY_PARAM_STREAM, AudioManager.STREAM_MUSIC)
         }
 
         // Jalankan pemutar suara dengan Bundle parameter yang valid
@@ -109,7 +109,7 @@ class GentleNavigationSpeaker(private val context: Context) : TextToSpeech.OnIni
             focusRequest?.let { audioManager.requestAudioFocus(it) }
         } else {
             @Suppress("DEPRECATION")
-            audioManager.requestAudioFocus(null, AudioManager.STREAM_NOTIFICATION, AudioManager.AUDIOFOCUS_GAIN_TRANSIENT_MAY_DUCK)
+            audioManager.requestAudioFocus(null, AudioManager.STREAM_MUSIC, AudioManager.AUDIOFOCUS_GAIN_TRANSIENT_MAY_DUCK)
         }
     }
 

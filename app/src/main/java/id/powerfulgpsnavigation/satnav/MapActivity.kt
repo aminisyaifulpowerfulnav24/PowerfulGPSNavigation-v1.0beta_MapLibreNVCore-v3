@@ -666,12 +666,14 @@ class MapActivity : AppCompatActivity() {
 
                             route = navigationViewModel.currentRoute.value!!
 
-                            navigationLocationEngine = navigationViewModel.navigationLocationEngine.value!!
+                            navigationLocationEngine = navigationViewModel.navigationLocationEngine.value
+                            val savedNavigationRouteEngine: LocationEngine? = navigationLocationEngine
 
-                            val savedRouteProgress = navigationViewModel.lastRouteProgress.value!!
-                            val savedNavigationPosition = navigationViewModel.currentLocation.value!!
+                            val savedRouteProgress: RouteProgress? = navigationViewModel.lastRouteProgress.value
+                            val savedNavigationPosition: Location? = navigationViewModel.currentLocation.value
 
-                            if (savedRouteProgress != null && savedNavigationPosition != null) {
+                            if (savedNavigationRouteEngine != null && savedRouteProgress != null && savedNavigationPosition != null) {
+                                navigationlocation = savedNavigationPosition
                                 lastRouteProgress = savedRouteProgress
                                 lastLegIndex = navigationViewModel.lastLegIndex.value ?: lastRouteProgress.legIndex()
                                 lastStepIndex = navigationViewModel.lastStepIndex.value ?: lastRouteProgress.currentLegProgress()?.stepIndex() ?: 0
@@ -679,16 +681,17 @@ class MapActivity : AppCompatActivity() {
                                 nextStep = navigationViewModel.lastNextStep.value ?: lastRouteProgress.currentLegProgress()?.upComingStep()
                                 currentStep = (navigationViewModel.lastCurrentStep.value ?: lastRouteProgress.currentLegProgress()?.currentStep())!!
 
-                                lastNavigationLocation = savedNavigationPosition
+                                gpsLocationListenerUpdated.onLocationChanged(navigationlocation!!)
 
-                                startNavigationRoute()
-
-                                navigation.let {
-                                    navigationProgressChangeListener.onProgressChange(lastNavigationLocation, lastRouteProgress)
-                                    it.addProgressChangeListener(
-                                        navigationProgressChangeListener
-                                    )
-                                    navigationProgressChangeListener.onProgressChange(lastNavigationLocation, lastRouteProgress)
+                                savedNavigationRouteEngine.let { navLocEngine ->
+                                    navigation.let { navigation ->
+                                        navigation.locationEngine = navLocEngine
+                                        navigationProgressChangeListener.onProgressChange(navigationlocation, lastRouteProgress)
+                                        navigation.addProgressChangeListener(
+                                            navigationProgressChangeListener
+                                        )
+                                        locationSmoothAnimator?.animateToNewLocation(navigationlocation!!)
+                                    }
                                 }
                             }
 
@@ -705,13 +708,13 @@ class MapActivity : AppCompatActivity() {
                             route = navigationViewModel.currentRoute.value!!
 
                             demoLocationEngine = ReplayRouteLocationEngine()
-
                             demoLocationEngine = navigationViewModel.replayRouteLocationEngine.value!!
 
-                            val savedRouteProgress = navigationViewModel.lastRouteProgress.value!!
-                            val savedNavigationPosition = navigationViewModel.currentLocation.value!!
+                            val savedRouteProgress: RouteProgress? = navigationViewModel.lastRouteProgress.value
+                            val savedNavigationPosition: Location? = navigationViewModel.currentLocation.value
 
                             if (savedRouteProgress != null && savedNavigationPosition != null) {
+                                navigationlocation = savedNavigationPosition
                                 lastRouteProgress = savedRouteProgress
                                 lastLegIndex = navigationViewModel.lastLegIndex.value ?: lastRouteProgress.legIndex()
                                 lastStepIndex = navigationViewModel.lastStepIndex.value ?: lastRouteProgress.currentLegProgress()?.stepIndex() ?: 0
@@ -719,16 +722,17 @@ class MapActivity : AppCompatActivity() {
                                 nextStep = navigationViewModel.lastNextStep.value ?: lastRouteProgress.currentLegProgress()?.upComingStep()
                                 currentStep = (navigationViewModel.lastCurrentStep.value ?: lastRouteProgress.currentLegProgress()?.currentStep())!!
 
-                                lastNavigationLocation = savedNavigationPosition
+                                gpsLocationListenerUpdated.onLocationChanged(navigationlocation!!)
 
-                                startSimulationRoute()
-
-                                navigation.let { navigation ->
-                                    navigationProgressChangeListener.onProgressChange(lastNavigationLocation, lastRouteProgress)
-                                    navigation.addProgressChangeListener(
-                                        navigationProgressChangeListener
-                                    )
-                                    navigationProgressChangeListener.onProgressChange(lastNavigationLocation, lastRouteProgress)
+                                demoLocationEngine.let { demoNavEngine ->
+                                    navigation.let { navigation ->
+                                        navigation.locationEngine = demoNavEngine
+                                        navigationProgressChangeListener.onProgressChange(navigationlocation, lastRouteProgress)
+                                        navigation.addProgressChangeListener(
+                                            navigationProgressChangeListener
+                                        )
+                                        locationSmoothAnimator?.animateToNewLocation(navigationlocation!!)
+                                    }
                                 }
                             }
 
@@ -856,9 +860,6 @@ class MapActivity : AppCompatActivity() {
                     mapView,
                     mapButtonUI
                 ).clickSearch()
-
-                onBackPressedDispatcher.addCallback(backToMap)
-                removeCloseThisNavMapsApp()
             }
 
             if (isLocationSelected) {
@@ -887,6 +888,8 @@ class MapActivity : AppCompatActivity() {
             if (isNavigationTurnByTurnMode) {
                 navigationTurnByTurnUI.visibility = View.VISIBLE
                 routeSummaryLayout.visibility = View.INVISIBLE
+
+                onBackPressedDispatcher.addCallback(backToStartMapView)
             }
         }
 
@@ -977,18 +980,22 @@ class MapActivity : AppCompatActivity() {
 
     private val gpsLocationListenerUpdated = object : LocationListener {
         override fun onLocationChanged(location: Location) {
-
-            if(!isNavigationTurnByTurnMode) {
+            if (!isNavigationTurnByTurnMode) {
                 navigationlocation = location
 
-                runOnUiThread {
-                    locationSmoothAnimator?.animateToNewLocation(navigationlocation!!)
+                locationSmoothAnimator?.animateToNewLocation(navigationlocation!!)
 
-                    speedNavigationInKph.text =
-                        "${(navigationlocation!!.speed * 3.6).toInt()}      km/h"
+                speedNavigationInKph.text = "${(navigationlocation!!.speed * 3.6).toInt()}      km/h"
+            } else {
+                navigationlocation = navigationViewModel.currentLocation.value
+
+                lastNavigationLocation = location
+                if (lastNavigationLocation != null) {
+                    navigationlocation = lastNavigationLocation
                 }
-            } else if (isNavigationTurnByTurnMode) {
-                navigationlocation = null
+
+                locationSmoothAnimator?.animateToNewLocation(navigationlocation!!)
+                routeNavigationCurrentSpeed.text = "${(navigationlocation!!.speed * 3.6).toInt()}      km/h"
             }
         }
     }
@@ -1453,20 +1460,21 @@ class MapActivity : AppCompatActivity() {
             if (routeProgress == null || location == null) return
 
             lastRouteProgress = routeProgress
+            navigationlocation = location
 
-            legProgress = routeProgress.currentLegProgress() ?: return
+            legProgress = lastRouteProgress.currentLegProgress() ?: return
             stepProgress = legProgress.currentStepProgress() ?: return
 
-            lastLegIndex = routeProgress.legIndex()
-            lastStepIndex = routeProgress.currentLegProgress().stepIndex()
-            distanceRemaining = routeProgress.distanceRemaining()
+            lastLegIndex = lastRouteProgress.legIndex()
+            lastStepIndex = lastRouteProgress.currentLegProgress().stepIndex()
+            distanceRemaining = lastRouteProgress.distanceRemaining()
 
             // 1. Ambil data tipe belokan (modifier) langsung dari rute OSRM
-            nextStep = routeProgress.currentLegProgress().upComingStep()
-            currentStep = routeProgress.currentLegProgress().currentStep()
+            nextStep = lastRouteProgress.currentLegProgress().upComingStep()
+            currentStep = lastRouteProgress.currentLegProgress().currentStep()
 
             navigationViewModel.updateLastRouteProgress(
-                routeProgress,
+                lastRouteProgress,
                 lastLegIndex,
                 lastStepIndex,
                 distanceRemaining,
@@ -1474,7 +1482,7 @@ class MapActivity : AppCompatActivity() {
                 currentStep
             )
 
-            navigationViewModel.updateLocation(location, location.latitude, location.longitude, location.bearing)
+            navigationViewModel.updateLocation(navigationlocation!!, navigationlocation!!.latitude, navigationlocation!!.longitude, navigationlocation!!.bearing)
 
             // Inisialisasi sekali di onCreate()
             val maneuverBannerManager = ManeuverBannerManager(
@@ -1541,20 +1549,20 @@ class MapActivity : AppCompatActivity() {
 
                     runOnUiThread {
                         if (distanceRemaining >= 0 && lastLegIndex >= 0 && lastStepIndex >= 0 && nextStep != null && currentStep != null) {
-                            lastNavigationLocation =
+                            navigationlocation =
                                 navigationViewModel.currentLocation.value ?: location
-                            lastNavigationLocation?.latitude =
+                            navigationlocation?.latitude =
                                 navigationViewModel.currentLocationLat.value
-                            lastNavigationLocation?.longitude =
+                            navigationlocation?.longitude =
                                 navigationViewModel.currentLocationLng.value
-                            lastNavigationLocation?.bearing =
+                            navigationlocation?.bearing =
                                 navigationViewModel.currentLocationBearing.value
 
                             locationSmoothAnimator?.animateToNewLocation(
-                                lastNavigationLocation!!
+                                navigationlocation!!
                             )
                             routeNavigationCurrentSpeed.text =
-                                "${(lastNavigationLocation!!.speed * 3.6).toInt()}      km/h"
+                                "${(navigationlocation!!.speed * 3.6).toInt()}      km/h"
                         }
                     }
 
@@ -1634,13 +1642,13 @@ class MapActivity : AppCompatActivity() {
                     // 5. PEMICU SUARA ADAPTIF & DINAMIS (Berdasarkan Kecepatan Nyata Kendaraan)
                     if (announcement.isNotEmpty()) {
                         if (distanceRemaining >= 0 && lastLegIndex >= 0 && lastStepIndex >= 0 && nextStep != null && currentStep != null) {
-                            lastNavigationLocation =
+                            navigationlocation =
                                 navigationViewModel.currentLocation.value ?: location
                         }
 
                         // Ambil kecepatan saat ini dalam m/s (meter per detik) dari objek location Anda
                         // Jika location null, berikan default kecepatan kota standar 30 km/jam (~8.3 m/s)
-                        val speedMetersPerSecond = lastNavigationLocation?.speed ?: 8.3f
+                        val speedMetersPerSecond = navigationlocation?.speed ?: 8.3f
 
                         /*
                             * Logika Waktu Reaksi (Waktu Mengemudi Menuju Belokan):
@@ -1697,8 +1705,8 @@ class MapActivity : AppCompatActivity() {
                 
                 if (isNavigationTurnByTurnMode) {
                     // Fungsi ini OTOMATIS dipicu oleh Core Engine saat GPS melenceng dari garis rute
-                    originLat = lastNavigationLocation!!.latitude
-                    originLng = lastNavigationLocation!!.longitude
+                    originLat = navigationlocation!!.latitude
+                    originLng = navigationlocation!!.longitude
 
                     osrmBaseUrl =
                         "http://router.project-osrm.org/" // Ganti dengan URL server OSRM Anda
@@ -1925,6 +1933,12 @@ class MapActivity : AppCompatActivity() {
     }
 
     fun cancelNavigationRoute() {
+        if (!isSimulationMode) {
+            navigationViewModel.clearNavigationEngine()
+        } else {
+            navigationViewModel.clearDemoNavigationEngine()
+        }
+
         routeSimulationBtn.visibility = View.INVISIBLE
         mapboxMap.setPadding(0, 0, 0, 0)
         toggleLocationSource(false)

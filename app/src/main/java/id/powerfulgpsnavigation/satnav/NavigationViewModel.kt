@@ -108,8 +108,16 @@ class NavigationViewModel(private val savedStateHandle: SavedStateHandle) : View
         _navigationLocationEngine.value = navigationLocationEngine
     }
 
+    fun clearNavigationEngine() {
+        _navigationLocationEngine.value = null
+    }
+
     fun setDemoNavigationEngine(replayRouteLocationEngine: ReplayRouteLocationEngine) {
         _replayRouteLocationEngine.value = replayRouteLocationEngine
+    }
+
+    fun clearDemoNavigationEngine() {
+        _replayRouteLocationEngine.value = null
     }
 
     fun setRouteAlt(routeAlt: List<DirectionsRoute>) {
