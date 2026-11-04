@@ -46,6 +46,7 @@ import androidx.constraintlayout.widget.ConstraintLayout
 import androidx.core.content.ContextCompat
 import androidx.core.content.res.ResourcesCompat
 import androidx.core.graphics.drawable.toBitmap
+import androidx.lifecycle.LifecycleOwner
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.android.material.floatingactionbutton.ExtendedFloatingActionButton
 import com.google.android.material.floatingactionbutton.FloatingActionButton
@@ -111,7 +112,7 @@ import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 import java.util.Objects
 
-class MapActivity : AppCompatActivity() {
+class MapActivity : AppCompatActivity(), LifecycleOwner {
 
     @SuppressLint("MissingPermission")
     private val locationPermissionRequest = registerForActivityResult(
@@ -173,7 +174,7 @@ class MapActivity : AppCompatActivity() {
     internal var layoutTop: Int = 0
     internal var layoutBottom: Int = 0
 
-    private lateinit var locationRequest: LocationEngineRequest
+    private var locationRequest: LocationEngineRequest? = null
 
     private var lastPositionLat = 0.0
     private var lastPositionLng = 0.0
@@ -304,11 +305,11 @@ class MapActivity : AppCompatActivity() {
     private lateinit var navigationRoute: DirectionsRoute
     private lateinit var navigationRouteBuilder: NavigationRoute.Builder
 
-    internal lateinit var navigation: MapboxNavigation
+    internal var navigation: MapboxNavigation? = null
     private var navigationMapRoute: NavigationMapRoute? = null
 
     private lateinit var directionsResponse: com.mapbox.services.android.navigation.v5.models.DirectionsResponse
-    internal lateinit var route: DirectionsRoute
+    internal var route: DirectionsRoute? = null
     private lateinit var allRoutes: MutableList<DirectionsRoute>
 
     private lateinit var routeList: List<DirectionsRoute> // Untuk menyimpan rute global
@@ -375,6 +376,11 @@ class MapActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
+        initNavigationMapUI(savedInstanceState)
+    }
+
+    @SuppressLint("MissingPermission")
+    private fun initNavigationMapUI(savedInstanceState: Bundle?) {
         if (savedInstanceState == null) {
             clearLocalData()
         }
@@ -416,6 +422,7 @@ class MapActivity : AppCompatActivity() {
         navigation = navigationViewModel.getOrCreateNavigation(this)
 
         mapView = rootView.findViewById(R.id.naviMapView)
+        mapView.onCreate(null)
         mapView.getMapAsync { map ->
 
             mapboxMap = map
@@ -437,7 +444,7 @@ class MapActivity : AppCompatActivity() {
                 style = nvMapStyle
                 if (fineLocationGranted || coarseLocationGranted) {
                     locationComponent = mapboxMap.locationComponent
-                    navigationLocationEngine = navigation.locationEngine
+                    navigationLocationEngine = navigation?.locationEngine
                     locationAnimationComponentOptions =
                         LocationComponentOptions.builder(this)
                             .accuracyAnimationEnabled(false)
@@ -457,15 +464,13 @@ class MapActivity : AppCompatActivity() {
                             .locationEngineRequest(locationRequest)
                             .build()
 
-                    if (::navigation.isInitialized) {
-                        locationComponent?.activateLocationComponent(
-                            locationComponentActivationOptions
-                        )
-                        locationComponent?.isLocationComponentEnabled = true
-                        locationComponent?.locationEngine = null
-                        locationComponent?.renderMode = RenderMode.GPS
-                        locationComponent?.setMaxAnimationFps(60)
-                    }
+                    locationComponent?.activateLocationComponent(
+                        locationComponentActivationOptions
+                    )
+                    locationComponent?.isLocationComponentEnabled = true
+                    locationComponent?.locationEngine = null
+                    locationComponent?.renderMode = RenderMode.GPS
+                    locationComponent?.setMaxAnimationFps(60)
 
                     if (isDataVisible) {
                         locationComponent?.setCameraMode(
@@ -663,7 +668,6 @@ class MapActivity : AppCompatActivity() {
                         navigationMapRoute?.addRoutes(routeList)
 
                         if (!isSimulationMode) {
-
                             route = navigationViewModel.currentRoute.value!!
 
                             navigationLocationEngine = navigationViewModel.navigationLocationEngine.value
@@ -672,8 +676,9 @@ class MapActivity : AppCompatActivity() {
                             val savedRouteProgress: RouteProgress? = navigationViewModel.lastRouteProgress.value
                             val savedNavigationPosition: Location? = navigationViewModel.currentLocation.value
 
-                            if (savedNavigationRouteEngine != null && savedRouteProgress != null && savedNavigationPosition != null) {
-                                navigationlocation = savedNavigationPosition
+                            if (navigation != null && savedNavigationRouteEngine != null && savedRouteProgress != null && savedNavigationPosition != null) {
+                                navigation = navigationViewModel.navigationTurnByTurnData.value!!
+                                lastNavigationLocation = savedNavigationPosition
                                 lastRouteProgress = savedRouteProgress
                                 lastLegIndex = navigationViewModel.lastLegIndex.value ?: lastRouteProgress.legIndex()
                                 lastStepIndex = navigationViewModel.lastStepIndex.value ?: lastRouteProgress.currentLegProgress()?.stepIndex() ?: 0
@@ -681,16 +686,23 @@ class MapActivity : AppCompatActivity() {
                                 nextStep = navigationViewModel.lastNextStep.value ?: lastRouteProgress.currentLegProgress()?.upComingStep()
                                 currentStep = (navigationViewModel.lastCurrentStep.value ?: lastRouteProgress.currentLegProgress()?.currentStep())!!
 
-                                gpsLocationListenerUpdated.onLocationChanged(navigationlocation!!)
-
                                 savedNavigationRouteEngine.let { navLocEngine ->
                                     navigation.let { navigation ->
-                                        navigation.locationEngine = navLocEngine
-                                        navigationProgressChangeListener.onProgressChange(navigationlocation, lastRouteProgress)
-                                        navigation.addProgressChangeListener(
-                                            navigationProgressChangeListener
-                                        )
-                                        locationSmoothAnimator?.animateToNewLocation(navigationlocation!!)
+
+                                        val resumeRoute = route ?: return@let
+
+                                        if (navLocEngine != null && lastRouteProgress != null && lastNavigationLocation != null) {
+                                            navigationProgressChangeListener.let { naviRouteProgressListener ->
+                                                navigation?.locationEngine = navLocEngine
+                                                navigation?.addProgressChangeListener(
+                                                    naviRouteProgressListener
+                                                )
+                                                if (resumeRoute != null) {
+                                                    navigation?.startNavigation(resumeRoute)
+                                                }
+                                                gpsLocationListenerUpdated.onLocationChanged(lastNavigationLocation!!)
+                                            }
+                                        }
                                     }
                                 }
                             }
@@ -703,18 +715,23 @@ class MapActivity : AppCompatActivity() {
                                 routeNavigationCurrentSpeed.visibility = View.INVISIBLE
                                 btnRecenterPosition.visibility = View.VISIBLE
                             }
+
+                            onBackPressedDispatcher.addCallback(backToStartMapView)
                         } else {
 
                             route = navigationViewModel.currentRoute.value!!
 
-                            demoLocationEngine = ReplayRouteLocationEngine()
                             demoLocationEngine = navigationViewModel.replayRouteLocationEngine.value!!
+                            demoLocationEngine = ReplayRouteLocationEngine()
 
                             val savedRouteProgress: RouteProgress? = navigationViewModel.lastRouteProgress.value
                             val savedNavigationPosition: Location? = navigationViewModel.currentLocation.value
 
-                            if (savedRouteProgress != null && savedNavigationPosition != null) {
-                                navigationlocation = savedNavigationPosition
+                            val resumeDemoRoute = route ?: return@runOnUiThread
+
+                            if (navigation != null && savedRouteProgress != null && savedNavigationPosition != null) {
+                                navigation = navigationViewModel.navigationTurnByTurnData.value!!
+                                lastNavigationLocation = savedNavigationPosition
                                 lastRouteProgress = savedRouteProgress
                                 lastLegIndex = navigationViewModel.lastLegIndex.value ?: lastRouteProgress.legIndex()
                                 lastStepIndex = navigationViewModel.lastStepIndex.value ?: lastRouteProgress.currentLegProgress()?.stepIndex() ?: 0
@@ -722,16 +739,24 @@ class MapActivity : AppCompatActivity() {
                                 nextStep = navigationViewModel.lastNextStep.value ?: lastRouteProgress.currentLegProgress()?.upComingStep()
                                 currentStep = (navigationViewModel.lastCurrentStep.value ?: lastRouteProgress.currentLegProgress()?.currentStep())!!
 
-                                gpsLocationListenerUpdated.onLocationChanged(navigationlocation!!)
-
                                 demoLocationEngine.let { demoNavEngine ->
                                     navigation.let { navigation ->
-                                        navigation.locationEngine = demoNavEngine
-                                        navigationProgressChangeListener.onProgressChange(navigationlocation, lastRouteProgress)
-                                        navigation.addProgressChangeListener(
-                                            navigationProgressChangeListener
-                                        )
-                                        locationSmoothAnimator?.animateToNewLocation(navigationlocation!!)
+                                        navigationProgressChangeListener.let { demoNaviRouteProgressListener ->
+                                            navigation?.locationEngine = demoNavEngine
+                                            navigation?.addProgressChangeListener(
+                                                demoNaviRouteProgressListener
+                                            )
+                                            val lastPoint = Point.fromLngLat(
+                                                lastNavigationLocation!!.longitude,
+                                                lastNavigationLocation!!.latitude
+                                            )
+                                            demoNavEngine.moveTo(lastPoint)
+                                            if (resumeDemoRoute != null) {
+                                                demoNavEngine.assign(resumeDemoRoute)
+                                                navigation?.startNavigation(resumeDemoRoute)
+                                            }
+                                            gpsLocationListenerUpdated.onLocationChanged(lastNavigationLocation!!)
+                                        }
                                     }
                                 }
                             }
@@ -744,6 +769,8 @@ class MapActivity : AppCompatActivity() {
                                 routeNavigationCurrentSpeed.visibility = View.INVISIBLE
                                 btnRecenterPosition.visibility = View.VISIBLE
                             }
+
+                            onBackPressedDispatcher.addCallback(backToStartMapView)
                         }
                     }
                 }
@@ -888,8 +915,6 @@ class MapActivity : AppCompatActivity() {
             if (isNavigationTurnByTurnMode) {
                 navigationTurnByTurnUI.visibility = View.VISIBLE
                 routeSummaryLayout.visibility = View.INVISIBLE
-
-                onBackPressedDispatcher.addCallback(backToStartMapView)
             }
         }
 
@@ -985,17 +1010,8 @@ class MapActivity : AppCompatActivity() {
 
                 locationSmoothAnimator?.animateToNewLocation(navigationlocation!!)
 
-                speedNavigationInKph.text = "${(navigationlocation!!.speed * 3.6).toInt()}      km/h"
-            } else {
-                navigationlocation = navigationViewModel.currentLocation.value
-
-                lastNavigationLocation = location
-                if (lastNavigationLocation != null) {
-                    navigationlocation = lastNavigationLocation
-                }
-
-                locationSmoothAnimator?.animateToNewLocation(navigationlocation!!)
-                routeNavigationCurrentSpeed.text = "${(navigationlocation!!.speed * 3.6).toInt()}      km/h"
+                speedNavigationInKph.text =
+                    "${(navigationlocation!!.speed * 3.6).toInt()}      km/h"
             }
         }
     }
@@ -1261,11 +1277,13 @@ class MapActivity : AppCompatActivity() {
                     routeList = directionsResponse.routes()
                     route = routeList[currentRouteIndex]
 
+                    val navigationRoute = route ?: return@fetchOsrmRoute
+
                     runOnUiThread {
                         loadRoutes()
 
                         navigationViewModel.setRouteAlt(routeList)
-                        navigationViewModel.setRoute(route)
+                        navigationViewModel.setRoute(navigationRoute)
                     }
                 }
             }
@@ -1412,15 +1430,17 @@ class MapActivity : AppCompatActivity() {
 
         if (currentDemoLocationEngine != null) {
             route = navigationViewModel.currentRoute.value!!
-            navigation.locationEngine = demoLocationEngine
+            val activeDemoNaviRoute = route ?: return
+
+            navigation?.locationEngine = currentDemoLocationEngine
 
             currentDemoLocationEngine.let {
                 navigation.let { navigation ->
                     it.updateSpeed(demoLocationSpeed)
-                    it.assign(route)
-                    navigation.locationEngine = it
-                    navigation.startNavigation(route)
-                    navigation.addProgressChangeListener(navigationProgressChangeListener)
+                    it.assign(activeDemoNaviRoute)
+                    navigation?.locationEngine = it
+                    navigation?.startNavigation(activeDemoNaviRoute)
+                    navigation?.addProgressChangeListener(navigationProgressChangeListener)
                 }
             }
 
@@ -1438,13 +1458,15 @@ class MapActivity : AppCompatActivity() {
 
         if (currentLocationEngine != null) {
             route = navigationViewModel.currentRoute.value!!
-            navigation.locationEngine = currentLocationEngine
+            val activeNaviRoute = route ?: return
+
+            navigation?.locationEngine = currentLocationEngine
 
             currentLocationEngine.let { locationEngine ->
                 navigation.let {
-                    it.locationEngine = locationEngine
-                    it.startNavigation(route)
-                    it.addProgressChangeListener(navigationProgressChangeListener)
+                    it?.locationEngine = locationEngine
+                    it?.startNavigation(activeNaviRoute)
+                    it?.addProgressChangeListener(navigationProgressChangeListener)
                 }
             }
 
@@ -1460,7 +1482,7 @@ class MapActivity : AppCompatActivity() {
             if (routeProgress == null || location == null) return
 
             lastRouteProgress = routeProgress
-            navigationlocation = location
+            lastNavigationLocation = location
 
             legProgress = lastRouteProgress.currentLegProgress() ?: return
             stepProgress = legProgress.currentStepProgress() ?: return
@@ -1482,7 +1504,7 @@ class MapActivity : AppCompatActivity() {
                 currentStep
             )
 
-            navigationViewModel.updateLocation(navigationlocation!!, navigationlocation!!.latitude, navigationlocation!!.longitude, navigationlocation!!.bearing)
+            navigationViewModel.updateLocation(lastNavigationLocation!!, lastNavigationLocation!!.latitude, lastNavigationLocation!!.longitude, lastNavigationLocation!!.bearing)
 
             // Inisialisasi sekali di onCreate()
             val maneuverBannerManager = ManeuverBannerManager(
@@ -1502,198 +1524,195 @@ class MapActivity : AppCompatActivity() {
                 }
             }
 
-            if (::navigation.isInitialized) {
+            if (isNavigationTurnByTurnMode) {
 
-                if (isNavigationTurnByTurnMode) {
+                val m = getString(R.string.route_meters)
+                val km = getString(R.string.route_kilometers)
 
-                    val m = getString(R.string.route_meters)
-                    val km = getString(R.string.route_kilometers)
+                val meters = (lastRouteProgress!!.distanceRemaining()).toInt()
+                val kilometers = (lastRouteProgress.distanceRemaining() / 1000).toInt()
 
-                    val meters = (lastRouteProgress!!.distanceRemaining()).toInt()
-                    val kilometers = (lastRouteProgress.distanceRemaining() / 1000).toInt()
+                // Format waktu
+                val minutes = (lastRouteProgress.durationRemaining() / 60 % 60).toInt()
+                val minutesToHours = (lastRouteProgress.durationRemaining() / 60).toInt()
+                val hours = (lastRouteProgress.durationRemaining() / 60 / 60).toInt()
+                val days = (lastRouteProgress.durationRemaining() / 60 / 60 / 24).toInt()
 
-                    // Format waktu
-                    val minutes = (lastRouteProgress.durationRemaining() / 60 % 60).toInt()
-                    val minutesToHours = (lastRouteProgress.durationRemaining() / 60).toInt()
-                    val hours = (lastRouteProgress.durationRemaining() / 60 / 60).toInt()
-                    val days = (lastRouteProgress.durationRemaining() / 60 / 60 / 24).toInt()
+                val minutesFormat = getString(R.string.directions_durations_minutes)
+                val hoursFormat = getString(R.string.directions_durations_hours)
+                val daysFormat = getString(R.string.directions_durations_days)
 
-                    val minutesFormat = getString(R.string.directions_durations_minutes)
-                    val hoursFormat = getString(R.string.directions_durations_hours)
-                    val daysFormat = getString(R.string.directions_durations_days)
+                if (meters > 1000) {
+                    directionsDistance.text = "${kilometers} ${km}"
+                } else {
+                    directionsDistance.text = "${meters} ${m}"
+                }
 
-                    if (meters > 1000) {
-                        directionsDistance.text = "${kilometers} ${km}"
-                    } else {
-                        directionsDistance.text = "${meters} ${m}"
+                if (hours > 24) {
+                    directionsTime.text =
+                        "${days}${daysFormat}${(hours % 24)}${hoursFormat}${minutes}${minutesFormat}"
+                } else {
+                    directionsTime.text = "${hours}${hoursFormat}${minutes}${minutesFormat}"
+                }
+
+                if (minutesToHours > 60) {
+                    directionsTime.text = "${hours}${hoursFormat}${minutes}${minutesFormat}"
+                } else {
+                    directionsTime.text = "${minutes}${minutesFormat}"
+                }
+
+                val formatter = DateTimeFormatter.ofPattern("HH:mm")
+
+                val arrivalTime = LocalDateTime.now().plusMinutes(minutesToHours.toLong())
+                val timeNow = arrivalTime.format(formatter)
+                directionsEta.text = "${timeNow}"
+
+                runOnUiThread {
+                    if (distanceRemaining >= 0 && lastLegIndex >= 0 && lastStepIndex >= 0 && nextStep != null && currentStep != null) {
+                        lastNavigationLocation =
+                            navigationViewModel.currentLocation.value ?: location
+                        lastNavigationLocation?.latitude =
+                            navigationViewModel.currentLocationLat.value
+                        lastNavigationLocation?.longitude =
+                            navigationViewModel.currentLocationLng.value
+                        lastNavigationLocation?.bearing =
+                            navigationViewModel.currentLocationBearing.value
+
+                        locationSmoothAnimator?.animateToNewLocation(
+                            lastNavigationLocation!!
+                        )
+                        routeNavigationCurrentSpeed.text =
+                            "${(lastNavigationLocation!!.speed * 3.6).toInt()}      km/h"
                     }
+                }
 
-                    if (hours > 24) {
-                        directionsTime.text =
-                            "${days}${daysFormat}${(hours % 24)}${hoursFormat}${minutes}${minutesFormat}"
-                    } else {
-                        directionsTime.text = "${hours}${hoursFormat}${minutes}${minutesFormat}"
-                    }
+                val targetStep = nextStep
 
-                    if (minutesToHours > 60) {
-                        directionsTime.text = "${hours}${hoursFormat}${minutes}${minutesFormat}"
-                    } else {
-                        directionsTime.text = "${minutes}${minutesFormat}"
-                    }
+                val modifier = targetStep?.maneuver()?.modifier() // contoh: "right", "left"
+                val type = targetStep?.maneuver()?.type()         // contoh: "arrive", "depart"
 
-                    val formatter = DateTimeFormatter.ofPattern("HH:mm")
+                // 2. Terjemahkan arah belokan ke Bahasa Indonesia sederhana
+                val arahBelokan = when (modifier) {
+                    "uturn" -> "putar balik"
+                    "right" -> "belok kanan"
+                    "left" -> "belok kiri"
+                    "slight right" -> "belokan sedikit ke kanan"
+                    "slight left" -> "belokan sedikit ke kiri"
+                    "sharp right" -> "belok tajam ke kanan"
+                    "sharp left" -> "belok tajam ke kiri"
+                    "straight" -> "lurus terus"
+                    else -> ""
+                }
 
-                    val arrivalTime = LocalDateTime.now().plusMinutes(minutesToHours.toLong())
-                    val timeNow = arrivalTime.format(formatter)
-                    directionsEta.text = "${timeNow}"
+                val jenisBelokan = when (type) {
+                    "arrive" -> "anda telah sampai di tujuan"
+                    "turn" -> arahBelokan
+                    "continue" -> "terus berkendara sejauh"
+                    "fork" -> "ambil $arahBelokan"
+                    "merge" -> "bergabung ke jalur $arahBelokan"
+                    "rotary" -> "di bundaran besar"
+                    "exit rotary" -> "keluar dari bundaran besar"
+                    "roundabout" -> "di bundaran"
+                    "roundabout turn" -> "di bundaran, ambil belokan $arahBelokan"
+                    "exit roundabout" -> "keluar dari bundaran"
+                    "on ramp" -> "masuk ke jalan tol $arahBelokan"
+                    "off ramp" -> "keluar dari jalan tol $arahBelokan"
+                    else -> arahBelokan.ifEmpty { "ikuti petunjuk arah" }
+                }
 
-                    runOnUiThread {
-                        if (distanceRemaining >= 0 && lastLegIndex >= 0 && lastStepIndex >= 0 && nextStep != null && currentStep != null) {
-                            navigationlocation =
-                                navigationViewModel.currentLocation.value ?: location
-                            navigationlocation?.latitude =
-                                navigationViewModel.currentLocationLat.value
-                            navigationlocation?.longitude =
-                                navigationViewModel.currentLocationLng.value
-                            navigationlocation?.bearing =
-                                navigationViewModel.currentLocationBearing.value
+                // 3. Ambil nama jalan yang tertera di papan belokan XML saat ini
+                val namaJalanDiPapan = targetStep?.name() ?: ""
 
-                            locationSmoothAnimator?.animateToNewLocation(
-                                navigationlocation!!
-                            )
-                            routeNavigationCurrentSpeed.text =
-                                "${(navigationlocation!!.speed * 3.6).toInt()}      km/h"
-                        }
-                    }
+                // 4. Rangkai kalimat petunjuk suara berdasarkan isi papan belokan visual + JARAK ADAPTIF
+                var announcement = ""
 
-                    val targetStep = nextStep
+                // Cetak Logcat untuk melihat apakah teks OSRM Anda benar-benar ada atau null
+                Log.d("NAV_DEBUG", "Leg ke: $lastLegIndex | Step Ke: $lastStepIndex | Jarak Tersisa: $distanceRemaining")
 
-                    val modifier = targetStep?.maneuver()?.modifier() // contoh: "right", "left"
-                    val type = targetStep?.maneuver()?.type()         // contoh: "arrive", "depart"
-
-                    // 2. Terjemahkan arah belokan ke Bahasa Indonesia sederhana
-                    val arahBelokan = when (modifier) {
-                        "uturn" -> "putar balik"
-                        "right" -> "belok kanan"
-                        "left" -> "belok kiri"
-                        "slight right" -> "belokan sedikit ke kanan"
-                        "slight left" -> "belokan sedikit ke kiri"
-                        "sharp right" -> "belok tajam ke kanan"
-                        "sharp left" -> "belok tajam ke kiri"
-                        "straight" -> "lurus terus"
-                        else -> ""
-                    }
-
-                    val jenisBelokan = when (type) {
-                        "arrive" -> "anda telah sampai di tujuan"
-                        "turn" -> arahBelokan
-                        "continue" -> "terus berkendara sejauh"
-                        "fork" -> "ambil $arahBelokan"
-                        "merge" -> "bergabung ke jalur $arahBelokan"
-                        "rotary" -> "di bundaran besar"
-                        "exit rotary" -> "keluar dari bundaran besar"
-                        "roundabout" -> "di bundaran"
-                        "roundabout turn" -> "di bundaran, ambil belokan $arahBelokan"
-                        "exit roundabout" -> "keluar dari bundaran"
-                        "on ramp" -> "masuk ke jalan tol $arahBelokan"
-                        "off ramp" -> "keluar dari jalan tol $arahBelokan"
-                        else -> arahBelokan.ifEmpty { "ikuti petunjuk arah" }
-                    }
-
-                    // 3. Ambil nama jalan yang tertera di papan belokan XML saat ini
-                    val namaJalanDiPapan = targetStep?.name() ?: ""
-
-                    // 4. Rangkai kalimat petunjuk suara berdasarkan isi papan belokan visual + JARAK ADAPTIF
-                    var announcement = ""
-
-                    // Cetak Logcat untuk melihat apakah teks OSRM Anda benar-benar ada atau null
-                    Log.d("NAV_DEBUG", "Leg ke: $lastLegIndex | Step Ke: $lastStepIndex | Jarak Tersisa: $distanceRemaining")
-
-                    val roundedDistance = if (distanceRemaining >= 1000) {
+                val roundedDistance = if (distanceRemaining >= 1000) {
                         // Jika di atas 1 KM, bulatkan ke ratusan meter terdekat (misal 1250m jadi 1.2 km / 1200m)
-                        (Math.round(distanceRemaining / 100.0) * 100).toInt()
-                    } else {
+                    (Math.round(distanceRemaining / 100.0) * 100).toInt()
+                } else {
                         // Jika di bawah 1 KM, bulatkan ke puluhan meter terdekat
-                        (Math.round(distanceRemaining / 10.0) * 10).toInt()
-                    }
+                    (Math.round(distanceRemaining / 10.0) * 10).toInt()
+                }
 
                     // Format penyebutan teks jarak agar natural di telinga (Mata / Kilometer)
-                    val teksJarak = if (roundedDistance >= 1000) {
-                        val kmValue = roundedDistance / 1000.0
-                        "Dalam $kmValue kilometer, "
-                    } else if (roundedDistance > 10) {
-                        "Dalam $roundedDistance meter, "
+                val teksJarak = if (roundedDistance >= 1000) {
+                    val kmValue = roundedDistance / 1000.0
+                    "Dalam $kmValue kilometer, "
+                } else if (roundedDistance > 10) {
+                    "Dalam $roundedDistance meter, "
+                } else {
+                    ""
+                }
+
+                if (type == "arrive") {
+                    announcement = "$teksJarak anda akan sampai di tujuan"
+                } else if (type == "depart") {
+                    announcement = "Mulai perjalanan, ikuti petunjuk arah"
+                } else {
+                    announcement = if (namaJalanDiPapan.isNotEmpty() && namaJalanDiPapan != "null") {
+                        "$teksJarak$jenisBelokan di $namaJalanDiPapan"
                     } else {
-                        ""
+                        "$teksJarak$jenisBelokan"
+                    }
+                }
+
+                // 5. PEMICU SUARA ADAPTIF & DINAMIS (Berdasarkan Kecepatan Nyata Kendaraan)
+                if (announcement.isNotEmpty()) {
+                    if (distanceRemaining >= 0 && lastLegIndex >= 0 && lastStepIndex >= 0 && nextStep != null && currentStep != null) {
+                        lastNavigationLocation =
+                            navigationViewModel.currentLocation.value ?: location
                     }
 
-                    if (type == "arrive") {
-                        announcement = "$teksJarak anda akan sampai di tujuan"
-                    } else if (type == "depart") {
-                        announcement = "Mulai perjalanan, ikuti petunjuk arah"
-                    } else {
-                        announcement = if (namaJalanDiPapan.isNotEmpty() && namaJalanDiPapan != "null") {
-                            "$teksJarak$jenisBelokan di $namaJalanDiPapan"
-                        } else {
-                            "$teksJarak$jenisBelokan"
-                        }
-                    }
+                    // Ambil kecepatan saat ini dalam m/s (meter per detik) dari objek location Anda
+                    // Jika location null, berikan default kecepatan kota standar 30 km/jam (~8.3 m/s)
+                    val speedMetersPerSecond = lastNavigationLocation?.speed ?: 8.3f
 
-                    // 5. PEMICU SUARA ADAPTIF & DINAMIS (Berdasarkan Kecepatan Nyata Kendaraan)
-                    if (announcement.isNotEmpty()) {
-                        if (distanceRemaining >= 0 && lastLegIndex >= 0 && lastStepIndex >= 0 && nextStep != null && currentStep != null) {
-                            navigationlocation =
-                                navigationViewModel.currentLocation.value ?: location
-                        }
+                    /*
+                    * Logika Waktu Reaksi (Waktu Mengemudi Menuju Belokan):
+                    * Kita ingin suara berbunyi sekitar 15-20 detik sebelum belokan (Pengingat Jauh)
+                    * Dan berbunyi kembali sekitar 4-6 detik sebelum belokan (Pengingat Dekat)
+                     */
+                    val triggerDistanceFar = (speedMetersPerSecond * 18).coerceAtLeast(100.0f) // Minimal di jarak 100 meter
+                    val triggerDistanceNear = (speedMetersPerSecond * 5).coerceAtLeast(20.0f)   // Minimal di jarak 20 meter
 
-                        // Ambil kecepatan saat ini dalam m/s (meter per detik) dari objek location Anda
-                        // Jika location null, berikan default kecepatan kota standar 30 km/jam (~8.3 m/s)
-                        val speedMetersPerSecond = navigationlocation?.speed ?: 8.3f
+                    // Buat pengunci bitwise atau string agar kita bisa membunyikan 2 kali dalam 1 segmen jalan (stepIndex)
+                    val farTriggerKey = "${lastStepIndex}_FAR"
+                    val nearTriggerKey = "${lastStepIndex}_NEAR"
 
-                        /*
-                            * Logika Waktu Reaksi (Waktu Mengemudi Menuju Belokan):
-                            * Kita ingin suara berbunyi sekitar 15-20 detik sebelum belokan (Pengingat Jauh)
-                            * Dan berbunyi kembali sekitar 4-6 detik sebelum belokan (Pengingat Dekat)
-                            */
-                        val triggerDistanceFar = (speedMetersPerSecond * 18).coerceAtLeast(100.0f) // Minimal di jarak 100 meter
-                        val triggerDistanceNear = (speedMetersPerSecond * 5).coerceAtLeast(20.0f)   // Minimal di jarak 20 meter
-
-                        // Buat pengunci bitwise atau string agar kita bisa membunyikan 2 kali dalam 1 segmen jalan (stepIndex)
-                        val farTriggerKey = "${lastStepIndex}_FAR"
-                        val nearTriggerKey = "${lastStepIndex}_NEAR"
-
-                        runOnUiThread {
-                            // --- PEMICU 1: PENGINGAT JAUH (Adaptif) ---
-                            // Contoh: Melaju 60km/jam (~16m/s), suara akan memicu otomatis di jarak ~300 meter sebelum belokan!
-                            if (distanceRemaining <= triggerDistanceFar && distanceRemaining > triggerDistanceNear + 20) {
-                                // Cek apakah pengingat jauh untuk belokan ini belum pernah diucapkan
-                                if (lastSpokenTriggerKey != farTriggerKey) {
-                                    lastSpokenTriggerKey = farTriggerKey // Kunci agar tidak berulang
-                                    gentleNavigationSpeaker.playGentle(announcement)
-                                }
+                    runOnUiThread {
+                        // --- PEMICU 1: PENGINGAT JAUH (Adaptif) ---
+                        // Contoh: Melaju 60km/jam (~16m/s), suara akan memicu otomatis di jarak ~300 meter sebelum belokan!
+                        if (distanceRemaining <= triggerDistanceFar && distanceRemaining > triggerDistanceNear + 20) {
+                            // Cek apakah pengingat jauh untuk belokan ini belum pernah diucapkan
+                            if (lastSpokenTriggerKey != farTriggerKey) {
+                                lastSpokenTriggerKey = farTriggerKey // Kunci agar tidak berulang
+                                gentleNavigationSpeaker.playGentle(announcement)
                             }
+                        }
 
-                            // --- PEMICU 2: PENGINGAT DEKAT / FINAL ---
-                            // Contoh: Berbunyi tajam saat sisa waktu sisa 5 detik menjelang eksekusi belokan
-                            else if (distanceRemaining <= triggerDistanceNear && distanceRemaining > 0.0) {
-                                if (lastSpokenTriggerKey != nearTriggerKey) {
-                                    lastSpokenTriggerKey = nearTriggerKey // Kunci agar tidak berulang
-                                    gentleNavigationSpeaker.stopAll() // Potong paksa instruksi jauh yang barangkali masih terbaca
+                        // --- PEMICU 2: PENGINGAT DEKAT / FINAL ---
+                        // Contoh: Berbunyi tajam saat sisa waktu sisa 5 detik menjelang eksekusi belokan
+                        else if (distanceRemaining <= triggerDistanceNear && distanceRemaining > 0.0) {
+                            if (lastSpokenTriggerKey != nearTriggerKey) {
+                                lastSpokenTriggerKey = nearTriggerKey // Kunci agar tidak berulang
+                                gentleNavigationSpeaker.stopAll() // Potong paksa instruksi jauh yang barangkali masih terbaca
 
                                     // Kalimat final tanpa meteran agar pengemudi fokus mengeksekusi setir
-                                    val finalAnnouncement = if (namaJalanDiPapan.isNotEmpty() && namaJalanDiPapan != "null") {
-                                        "$jenisBelokan menuju $namaJalanDiPapan"
-                                    } else {
-                                        "$jenisBelokan"
-                                    }
-                                    gentleNavigationSpeaker.playGentle(finalAnnouncement)
+                                val finalAnnouncement = if (namaJalanDiPapan.isNotEmpty() && namaJalanDiPapan != "null") {
+                                    "$jenisBelokan menuju $namaJalanDiPapan"
+                                } else {
+                                    "$jenisBelokan"
                                 }
+                                gentleNavigationSpeaker.playGentle(finalAnnouncement)
                             }
                         }
                     }
-
-                    navigation.addOffRouteListener(offRouteListener)
                 }
+
+                navigation?.addOffRouteListener(offRouteListener)
             }
         }
     }
@@ -1701,40 +1720,38 @@ class MapActivity : AppCompatActivity() {
     private val offRouteListener = object: OffRouteListener {
         override fun userOffRoute(location: Location?) {
 
-            if (::navigation.isInitialized) {
-                
-                if (isNavigationTurnByTurnMode) {
-                    // Fungsi ini OTOMATIS dipicu oleh Core Engine saat GPS melenceng dari garis rute
-                    originLat = navigationlocation!!.latitude
-                    originLng = navigationlocation!!.longitude
+            if (isNavigationTurnByTurnMode) {
+                // Fungsi ini OTOMATIS dipicu oleh Core Engine saat GPS melenceng dari garis rute
+                originLat = lastNavigationLocation!!.latitude
+                originLng = lastNavigationLocation!!.longitude
 
-                    osrmBaseUrl =
-                        "http://router.project-osrm.org/" // Ganti dengan URL server OSRM Anda
-                    user = "route/v1/"
-                    vehicle = "driving/"
-                    url =
-                        "${osrmBaseUrl}${user}${vehicle}${originLng},${originLat};${destinationLng},${destinationLat}?steps=true&alternatives=true&geometries=polyline6&overview=full&annotations=duration,distance"
+                osrmBaseUrl =
+                    "http://router.project-osrm.org/" // Ganti dengan URL server OSRM Anda
+                user = "route/v1/"
+                vehicle = "driving/"
+                url =
+                    "${osrmBaseUrl}${user}${vehicle}${originLng},${originLat};${destinationLng},${destinationLat}?steps=true&alternatives=true&geometries=polyline6&overview=full&annotations=duration,distance"
 
-                    fetchOsrmRoute(url) { responseRoutes ->
-                        if (responseRoutes != null && responseRoutes.routes().isNotEmpty()) {
+                fetchOsrmRoute(url) { responseRoutes ->
+                    if (responseRoutes != null && responseRoutes.routes().isNotEmpty()) {
 
-                            routeList = responseRoutes.routes()
-                            route = routeList[currentRouteIndex]
+                        routeList = responseRoutes.routes()
+                        route = routeList[currentRouteIndex]
+                        val updateNavigationRoute = route ?: return@fetchOsrmRoute
 
-                            runOnUiThread {
+                        runOnUiThread {
 
-                                navigation.stopNavigation() // Hentikan pelacakan rute lama
-                                navigationViewModel.clearRoute()
-                                navigationViewModel.clearRouteAlt()
-                                navigationViewModel.setRouteAlt(routeList)
-                                navigationViewModel.setRoute(route)
-                                routeRestoredList.clear()
-                                navigation.startNavigation(route) // Mulai ulang pelacakan dengan rute baru (Kunci Snap Berfungsi Lagi)
+                            navigation?.stopNavigation() // Hentikan pelacakan rute lama
+                            navigationViewModel.clearRoute()
+                            navigationViewModel.clearRouteAlt()
+                            navigationViewModel.setRouteAlt(routeList)
+                            navigationViewModel.setRoute(updateNavigationRoute)
+                            routeRestoredList.clear()
+                            navigation?.startNavigation(updateNavigationRoute) // Mulai ulang pelacakan dengan rute baru (Kunci Snap Berfungsi Lagi)
 
-                                // Gambar rute baru di peta buatan Anda
-                                navigationMapRoute?.addRoute(route)
+                            // Gambar rute baru di peta buatan Anda
+                            navigationMapRoute?.addRoute(route)
 
-                            }
                         }
                     }
                 }
@@ -1939,6 +1956,8 @@ class MapActivity : AppCompatActivity() {
             navigationViewModel.clearDemoNavigationEngine()
         }
 
+        navigationViewModel.clearLocationData()
+
         routeSimulationBtn.visibility = View.INVISIBLE
         mapboxMap.setPadding(0, 0, 0, 0)
         toggleLocationSource(false)
@@ -1947,12 +1966,12 @@ class MapActivity : AppCompatActivity() {
         navigationViewModel.clearRoute()
         navigationViewModel.clearRouteAlt()
         navigationViewModel.clearLastRouteProgress()
-        navigationViewModel.clearLocationData()
+        navigationViewModel.clearNavigationData()
         routeRestoredList.clear()
         savedRouteListJson = ""
         mapboxMap.removeMarker(marker)
-        navigation.stopNavigation()
-        navigation.removeOffRouteListener(offRouteListener)
+        navigation?.stopNavigation()
+        navigation?.removeOffRouteListener(offRouteListener)
 
         isNavigationTurnByTurnMode = false
 
@@ -2051,6 +2070,6 @@ class MapActivity : AppCompatActivity() {
     override fun onDestroy() {
         super.onDestroy();
         mapView.onDestroy()
-        navigation.onDestroy()
+        navigation?.onDestroy()
     }
 }

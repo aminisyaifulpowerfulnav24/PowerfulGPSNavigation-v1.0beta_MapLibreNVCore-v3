@@ -20,7 +20,7 @@ import com.mapbox.services.android.navigation.v5.routeprogress.RouteProgress
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 
-class NavigationViewModel(private val savedStateHandle: SavedStateHandle) : ViewModel() {
+class NavigationViewModel : ViewModel() {
     private val _navigationLocationEngine = MutableLiveData<LocationEngine>()
     val navigationLocationEngine: LiveData<LocationEngine> = _navigationLocationEngine
 
@@ -70,9 +70,6 @@ class NavigationViewModel(private val savedStateHandle: SavedStateHandle) : View
 
     private val _lastRouteProgress = MutableLiveData<RouteProgress>()
     var lastRouteProgress: LiveData<RouteProgress> = _lastRouteProgress
-
-    // Simpan status apakah sedang navigasi turn-by-turn
-    val isNavigating: LiveData<Boolean> = savedStateHandle.getLiveData("IS_NAVIGATING", false)
 
     var _navigationTurnByTurnData = MutableLiveData<MapboxNavigation>()
     var navigationTurnByTurnData: LiveData<MapboxNavigation> = _navigationTurnByTurnData
@@ -133,6 +130,20 @@ class NavigationViewModel(private val savedStateHandle: SavedStateHandle) : View
         _navigationTurnByTurnData.value = navigation
     }
 
+    fun clearNavigationData() {
+        _navigationTurnByTurnData.value = null
+    }
+
+    fun startNavigation(route: DirectionsRoute) {
+        if (route != null) {
+            mapboxNavigationInstance?.startNavigation(route)
+        }
+    }
+
+    fun stopNavigation() {
+        mapboxNavigationInstance?.stopNavigation()
+    }
+
     fun clearRouteAlt() {
         _currentRouteAlt.value = null
     }
@@ -142,8 +153,18 @@ class NavigationViewModel(private val savedStateHandle: SavedStateHandle) : View
         _currentRoute.value = null
     }
 
-    fun clearNavigationData() {
-        _navigationTurnByTurnData.value = null
+    fun updateLocation(location: Location, latitude: Double, longitude: Double, bearing: Float) {
+        _currentLocation.value = location
+        _currentLocationLat.value = latitude
+        _currentLocationLng.value = longitude
+        _currentLocationBearing.value = bearing
+    }
+
+    fun clearLocationData() {
+        _currentLocation.value = null
+        _currentLocationLat.value = 0.0
+        _currentLocationLng.value = 0.0
+        _currentLocationBearing.value = 0f
     }
 
     fun setOnNavigationRouteProgress(listener: ProgressChangeListener) {
@@ -175,6 +196,18 @@ class NavigationViewModel(private val savedStateHandle: SavedStateHandle) : View
         _lastDistanceRemaining.value = null
         _lastNextStep.value = null
         _lastCurrentStep.value = null
+    }
+
+    fun updateRouteProgress(routeProgress: RouteProgress) {
+        _lastRouteProgress.value = routeProgress
+    }
+
+    fun clearRouteProgress() {
+        _lastRouteProgress.value = null
+    }
+
+    fun updateLastLocation(location: Location) {
+        _currentLocation.value = location
     }
 
     fun setLastStepIndex(index: Int) {
@@ -223,27 +256,5 @@ class NavigationViewModel(private val savedStateHandle: SavedStateHandle) : View
 
     fun clearLastDistanceRemaining() {
         _lastDistanceRemaining.value = null
-    }
-
-    fun setNavigatingStatus(isNavigating: Boolean) {
-        savedStateHandle["IS_NAVIGATING"] = isNavigating
-    }
-
-    fun clearNavigatingStatus() {
-        savedStateHandle.remove<Boolean>("IS_NAVIGATING")
-    }
-
-    fun updateLocation(location: Location, latitude: Double, longitude: Double, bearing: Float) {
-        _currentLocation.value = location
-        _currentLocationLat.value = latitude
-        _currentLocationLng.value = longitude
-        _currentLocationBearing.value = bearing
-    }
-
-    fun clearLocationData() {
-        _currentLocation.value = null
-        _currentLocationLat.value = 0.0
-        _currentLocationLng.value = 0.0
-        _currentLocationBearing.value = 0f
     }
 }

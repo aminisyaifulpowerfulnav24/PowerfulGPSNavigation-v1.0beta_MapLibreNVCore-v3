@@ -31,6 +31,7 @@ fun MapActivity.RouteDirectionsSummary() {
         isRouteSummaryUI = false
         isNavigationTurnByTurnMode = true
         isNavigating = true
+        navigationViewModel.setNavigationData(navigation!!)
         navigationViewModel.setDemoNavigationEngine(demoLocationEngine)
         saveStatus(true)
         toggleLocationSource(true)
@@ -41,6 +42,7 @@ fun MapActivity.RouteDirectionsSummary() {
         isRouteSummaryUI = false
         isNavigationTurnByTurnMode = true
         isNavigating = true
+        navigationViewModel.setNavigationData(navigation!!)
         navigationViewModel.setNavigationEngine(navigationLocationEngine!!)
         saveStatus(true)
         toggleLocationSource(false)

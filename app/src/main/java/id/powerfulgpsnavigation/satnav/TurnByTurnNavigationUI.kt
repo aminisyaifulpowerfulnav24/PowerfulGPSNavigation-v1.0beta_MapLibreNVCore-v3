@@ -10,6 +10,8 @@ fun MapActivity.TurnByTurnNavigationUI() {
         if (isNavigationTurnByTurnMode) {
             saveStatus(false)
 
+            val activeRoute = route ?: return@setOnClickListener
+
             val orientation = resources.configuration.orientation
             when (orientation) {
                 Configuration.ORIENTATION_LANDSCAPE -> {
@@ -26,7 +28,7 @@ fun MapActivity.TurnByTurnNavigationUI() {
                 }
             }
 
-            getRouteBounds(route)?.let { routeBounds ->
+            getRouteBounds(activeRoute)?.let { routeBounds ->
 
                 mapboxMap.setPadding(0, 0, 0, 0)
 
