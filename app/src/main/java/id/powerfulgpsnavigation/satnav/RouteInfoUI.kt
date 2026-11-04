@@ -28,10 +28,12 @@ fun MapActivity.RouteDirectionsSummary() {
     }
 
     routeSimulationBtn.setOnClickListener {
+        val demoNavigation = navigation ?: return@setOnClickListener
+
         isRouteSummaryUI = false
         isNavigationTurnByTurnMode = true
         isNavigating = true
-        navigationViewModel.setNavigationData(navigation!!)
+        navigationViewModel.setNavigationData(demoNavigation)
         navigationViewModel.setDemoNavigationEngine(demoLocationEngine)
         saveStatus(true)
         toggleLocationSource(true)
@@ -39,10 +41,12 @@ fun MapActivity.RouteDirectionsSummary() {
     }
 
     startNavigationBtn.setOnClickListener {
+        val realTimeNavigation = navigation ?: return@setOnClickListener
+
         isRouteSummaryUI = false
         isNavigationTurnByTurnMode = true
         isNavigating = true
-        navigationViewModel.setNavigationData(navigation!!)
+        navigationViewModel.setNavigationData(realTimeNavigation)
         navigationViewModel.setNavigationEngine(navigationLocationEngine!!)
         saveStatus(true)
         toggleLocationSource(false)

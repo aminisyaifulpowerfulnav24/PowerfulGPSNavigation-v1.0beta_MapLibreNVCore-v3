@@ -690,8 +690,9 @@ class MapActivity : AppCompatActivity(), LifecycleOwner {
                                     navigation.let { navigation ->
 
                                         val resumeRoute = route ?: return@let
+                                        val resumeNavLoc = lastNavigationLocation ?: return@let
 
-                                        if (navLocEngine != null && lastRouteProgress != null && lastNavigationLocation != null) {
+                                        if (resumeNavLoc != null && navLocEngine != null && lastRouteProgress != null && lastNavigationLocation != null) {
                                             navigationProgressChangeListener.let { naviRouteProgressListener ->
                                                 navigation?.locationEngine = navLocEngine
                                                 navigation?.addProgressChangeListener(
@@ -700,7 +701,7 @@ class MapActivity : AppCompatActivity(), LifecycleOwner {
                                                 if (resumeRoute != null) {
                                                     navigation?.startNavigation(resumeRoute)
                                                 }
-                                                gpsLocationListenerUpdated.onLocationChanged(lastNavigationLocation!!)
+                                                gpsLocationListenerUpdated.onLocationChanged(resumeNavLoc)
                                             }
                                         }
                                     }
@@ -739,6 +740,8 @@ class MapActivity : AppCompatActivity(), LifecycleOwner {
                                 nextStep = navigationViewModel.lastNextStep.value ?: lastRouteProgress.currentLegProgress()?.upComingStep()
                                 currentStep = (navigationViewModel.lastCurrentStep.value ?: lastRouteProgress.currentLegProgress()?.currentStep())!!
 
+                                val resumeDemoNavLoc = lastNavigationLocation ?: return@runOnUiThread
+
                                 demoLocationEngine.let { demoNavEngine ->
                                     navigation.let { navigation ->
                                         navigationProgressChangeListener.let { demoNaviRouteProgressListener ->
@@ -747,15 +750,15 @@ class MapActivity : AppCompatActivity(), LifecycleOwner {
                                                 demoNaviRouteProgressListener
                                             )
                                             val lastPoint = Point.fromLngLat(
-                                                lastNavigationLocation!!.longitude,
-                                                lastNavigationLocation!!.latitude
+                                                resumeDemoNavLoc.longitude,
+                                                resumeDemoNavLoc.latitude
                                             )
                                             demoNavEngine.moveTo(lastPoint)
                                             if (resumeDemoRoute != null) {
                                                 demoNavEngine.assign(resumeDemoRoute)
                                                 navigation?.startNavigation(resumeDemoRoute)
                                             }
-                                            gpsLocationListenerUpdated.onLocationChanged(lastNavigationLocation!!)
+                                            gpsLocationListenerUpdated.onLocationChanged(resumeDemoNavLoc)
                                         }
                                     }
                                 }
@@ -1007,11 +1010,12 @@ class MapActivity : AppCompatActivity(), LifecycleOwner {
         override fun onLocationChanged(location: Location) {
             if (!isNavigationTurnByTurnMode) {
                 navigationlocation = location
+                val currentNavigationLocation = navigationlocation ?: return
 
-                locationSmoothAnimator?.animateToNewLocation(navigationlocation!!)
+                locationSmoothAnimator?.animateToNewLocation(currentNavigationLocation)
 
                 speedNavigationInKph.text =
-                    "${(navigationlocation!!.speed * 3.6).toInt()}      km/h"
+                    "${(currentNavigationLocation.speed * 3.6).toInt()}      km/h"
             }
         }
     }
@@ -1569,20 +1573,22 @@ class MapActivity : AppCompatActivity(), LifecycleOwner {
 
                 runOnUiThread {
                     if (distanceRemaining >= 0 && lastLegIndex >= 0 && lastStepIndex >= 0 && nextStep != null && currentStep != null) {
-                        lastNavigationLocation =
+                        var currentNaviLocRoute = lastNavigationLocation ?: return@runOnUiThread
+
+                        currentNaviLocRoute =
                             navigationViewModel.currentLocation.value ?: location
-                        lastNavigationLocation?.latitude =
+                        currentNaviLocRoute.latitude =
                             navigationViewModel.currentLocationLat.value
-                        lastNavigationLocation?.longitude =
+                        currentNaviLocRoute.longitude =
                             navigationViewModel.currentLocationLng.value
-                        lastNavigationLocation?.bearing =
+                        currentNaviLocRoute.bearing =
                             navigationViewModel.currentLocationBearing.value
 
                         locationSmoothAnimator?.animateToNewLocation(
-                            lastNavigationLocation!!
+                            currentNaviLocRoute
                         )
                         routeNavigationCurrentSpeed.text =
-                            "${(lastNavigationLocation!!.speed * 3.6).toInt()}      km/h"
+                            "${(currentNaviLocRoute.speed * 3.6).toInt()}      km/h"
                     }
                 }
 
@@ -1661,14 +1667,17 @@ class MapActivity : AppCompatActivity(), LifecycleOwner {
 
                 // 5. PEMICU SUARA ADAPTIF & DINAMIS (Berdasarkan Kecepatan Nyata Kendaraan)
                 if (announcement.isNotEmpty()) {
+                    var currentNaviLocRoute = lastNavigationLocation ?: return
+
                     if (distanceRemaining >= 0 && lastLegIndex >= 0 && lastStepIndex >= 0 && nextStep != null && currentStep != null) {
-                        lastNavigationLocation =
+
+                        currentNaviLocRoute =
                             navigationViewModel.currentLocation.value ?: location
                     }
 
                     // Ambil kecepatan saat ini dalam m/s (meter per detik) dari objek location Anda
                     // Jika location null, berikan default kecepatan kota standar 30 km/jam (~8.3 m/s)
-                    val speedMetersPerSecond = lastNavigationLocation?.speed ?: 8.3f
+                    val speedMetersPerSecond = currentNaviLocRoute?.speed ?: 8.3f
 
                     /*
                     * Logika Waktu Reaksi (Waktu Mengemudi Menuju Belokan):
@@ -1721,9 +1730,11 @@ class MapActivity : AppCompatActivity(), LifecycleOwner {
         override fun userOffRoute(location: Location?) {
 
             if (isNavigationTurnByTurnMode) {
+                var currentNaviLocRoute = lastNavigationLocation ?: return
+
                 // Fungsi ini OTOMATIS dipicu oleh Core Engine saat GPS melenceng dari garis rute
-                originLat = lastNavigationLocation!!.latitude
-                originLng = lastNavigationLocation!!.longitude
+                originLat = currentNaviLocRoute.latitude
+                originLng = currentNaviLocRoute.longitude
 
                 osrmBaseUrl =
                     "http://router.project-osrm.org/" // Ganti dengan URL server OSRM Anda
