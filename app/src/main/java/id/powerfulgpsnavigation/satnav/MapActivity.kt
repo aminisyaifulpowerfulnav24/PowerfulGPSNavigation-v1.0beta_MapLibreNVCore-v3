@@ -733,8 +733,6 @@ class MapActivity : AppCompatActivity(), LifecycleOwner {
 
                                 route = navigationViewModel.currentRoute.value!!
 
-                                demoLocationEngine = ReplayRouteLocationEngine()
-
                                 val currentLastRouteProgress: RouteProgress? =
                                     navigationViewModel.lastRouteProgress.value
                                 val currentLastNavigationLocation: Location? =
@@ -757,6 +755,8 @@ class MapActivity : AppCompatActivity(), LifecycleOwner {
                                     currentStep = (navigationViewModel.lastCurrentStep.value
                                         ?: lastRouteProgress.currentLegProgress()?.currentStep())!!
 
+                                    val activeDemoRoute = route ?: return@runOnUiThread
+
                                     demoLocationEngine.let { demoNavEngine ->
                                         navigation.let { navigation ->
                                             navigationProgressChangeListener.let { demoNaviRouteProgressListener ->
@@ -766,10 +766,12 @@ class MapActivity : AppCompatActivity(), LifecycleOwner {
                                                     lastNavigationLocation!!.latitude
                                                 )
                                                 navigation?.locationEngine = demoNavEngine
+                                                demoNavEngine.assign(activeDemoRoute)
+                                                demoNavEngine.moveTo(lastPoint)
+                                                demoNavEngine.updateSpeed(demoLocationSpeed)
                                                 navigation?.addProgressChangeListener(
                                                     demoNaviRouteProgressListener
                                                 )
-                                                demoNavEngine.moveTo(lastPoint)
                                                 gpsLocationListenerUpdated.onLocationChanged(
                                                     lastNavigationLocation!!
                                                 )
@@ -1733,8 +1735,6 @@ class MapActivity : AppCompatActivity(), LifecycleOwner {
                 runOnUiThread {
                     if (!isSimulationMode) {
                         navigationViewModel.clearNavigationEngine()
-                    } else {
-                        navigationViewModel.clearDemoNavigationEngine()
                     }
 
                     navigationViewModel.clearLocationData()
@@ -1988,8 +1988,6 @@ class MapActivity : AppCompatActivity(), LifecycleOwner {
     fun cancelNavigationRoute() {
         if (!isSimulationMode) {
             navigationViewModel.clearNavigationEngine()
-        } else {
-            navigationViewModel.clearDemoNavigationEngine()
         }
 
         navigationViewModel.clearLocationData()
