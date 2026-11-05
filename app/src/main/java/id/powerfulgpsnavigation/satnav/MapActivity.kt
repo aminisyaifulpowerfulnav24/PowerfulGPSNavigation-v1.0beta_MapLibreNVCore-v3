@@ -767,7 +767,7 @@ class MapActivity : AppCompatActivity(), LifecycleOwner {
                                                 )
                                                 navigation?.locationEngine = demoNavEngine
                                                 demoNavEngine.assign(activeDemoRoute)
-                                                demoNavEngine.moveTo(lastPoint)
+                                                demoNavEngine.assignLastLocation(lastPoint)
                                                 demoNavEngine.updateSpeed(demoLocationSpeed)
                                                 navigation?.addProgressChangeListener(
                                                     demoNaviRouteProgressListener
