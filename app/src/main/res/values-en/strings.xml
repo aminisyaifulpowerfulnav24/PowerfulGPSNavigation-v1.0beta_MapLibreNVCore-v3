@@ -28,6 +28,7 @@
     <string name="route_distance_remaining">Distance</string>
     <string name="route_eta">ETA</string>
     <string name="route_recenter_navigation">Resume</string>
+    <string name="navigation_recalculating_route">Recalculating the route...</string>
     <string name="route_stop_navigation">Stop</string>
     <string name="offline_maps_manager">Manage Maps</string>
     <string name="navigate_to">Navigate To</string>

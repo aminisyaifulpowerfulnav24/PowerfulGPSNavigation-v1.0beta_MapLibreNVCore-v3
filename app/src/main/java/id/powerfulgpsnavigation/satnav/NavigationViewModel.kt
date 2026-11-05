@@ -153,11 +153,11 @@ class NavigationViewModel : ViewModel() {
         _currentRoute.value = null
     }
 
-    fun updateLocation(location: Location, latitude: Double, longitude: Double, bearing: Float) {
+    fun updateLocation(location: Location) {
         _currentLocation.value = location
-        _currentLocationLat.value = latitude
-        _currentLocationLng.value = longitude
-        _currentLocationBearing.value = bearing
+        _currentLocationLat.value = location.latitude
+        _currentLocationLng.value = location.longitude
+        _currentLocationBearing.value = location.bearing
     }
 
     fun clearLocationData() {

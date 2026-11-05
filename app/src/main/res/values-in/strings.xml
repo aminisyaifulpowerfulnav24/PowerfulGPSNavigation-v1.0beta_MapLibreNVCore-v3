@@ -28,6 +28,7 @@
     <string name="route_distance_remaining">Jarak</string>
     <string name="route_eta">PWT</string>
     <string name="route_recenter_navigation">Lanjut</string>
+    <string name="navigation_recalculating_route">Rekalkulasi rute...</string>
     <string name="route_stop_navigation">Stop</string>
     <string name="offline_maps_manager">Kelola Peta</string>
     <string name="navigate_to">Bernavigasi Ke</string>

@@ -8,12 +8,14 @@ import android.content.Intent
 import android.content.SharedPreferences
 import android.content.pm.PackageManager
 import android.content.res.Configuration
+import android.graphics.drawable.Drawable
 import android.location.Location
 import android.location.LocationListener
 import android.location.LocationManager
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
+import android.os.Handler
 import android.os.Looper
 import android.os.Parcelable
 import android.provider.Settings
@@ -371,6 +373,9 @@ class MapActivity : AppCompatActivity(), LifecycleOwner {
     // Ganti pengunci lama dengan pengunci berbasis String Trigger Key
     private var lastSpokenTriggerKey = ""
 
+    private var recalculatingRouteRunnable: Runnable? = null
+    private var recalculatingRouteHandler = Handler(Looper.getMainLooper())
+
 
     @SuppressLint("SetTextI18n", "MissingPermission")
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -663,117 +668,129 @@ class MapActivity : AppCompatActivity(), LifecycleOwner {
 
                 if (isNavigationTurnByTurnMode) {
                     runOnUiThread {
-                        routeList = navigationViewModel.currentRouteAlt.value!!
+                        if (routeList != null) {
+                            routeList = navigationViewModel.currentRouteAlt.value!!
 
-                        navigationMapRoute?.addRoutes(routeList)
+                            navigationMapRoute?.addRoutes(routeList)
 
-                        if (!isSimulationMode) {
-                            route = navigationViewModel.currentRoute.value!!
+                            if (!isSimulationMode) {
+                                route = navigationViewModel.currentRoute.value!!
 
-                            navigationLocationEngine = navigationViewModel.navigationLocationEngine.value
-                            val savedNavigationRouteEngine: LocationEngine? = navigationLocationEngine
+                                navigationLocationEngine =
+                                    navigationViewModel.navigationLocationEngine.value
+                                val savedNavigationRouteEngine: LocationEngine? =
+                                    navigationLocationEngine
 
-                            val savedRouteProgress: RouteProgress? = navigationViewModel.lastRouteProgress.value
-                            val savedNavigationPosition: Location? = navigationViewModel.currentLocation.value
+                                val currentLastRouteProgress: RouteProgress? =
+                                    navigationViewModel.lastRouteProgress.value
+                                val currentLastNavigationLocation: Location? =
+                                    navigationViewModel.currentLocation.value
 
-                            if (navigation != null && savedNavigationRouteEngine != null && savedRouteProgress != null && savedNavigationPosition != null) {
-                                navigation = navigationViewModel.navigationTurnByTurnData.value!!
-                                lastNavigationLocation = savedNavigationPosition
-                                lastRouteProgress = savedRouteProgress
-                                lastLegIndex = navigationViewModel.lastLegIndex.value ?: lastRouteProgress.legIndex()
-                                lastStepIndex = navigationViewModel.lastStepIndex.value ?: lastRouteProgress.currentLegProgress()?.stepIndex() ?: 0
-                                distanceRemaining = navigationViewModel.lastDistanceRemaining.value ?: lastRouteProgress.distanceRemaining()
-                                nextStep = navigationViewModel.lastNextStep.value ?: lastRouteProgress.currentLegProgress()?.upComingStep()
-                                currentStep = (navigationViewModel.lastCurrentStep.value ?: lastRouteProgress.currentLegProgress()?.currentStep())!!
+                                if (navigation != null && savedNavigationRouteEngine != null && currentLastRouteProgress != null && currentLastNavigationLocation != null) {
+                                    navigation =
+                                        navigationViewModel.navigationTurnByTurnData.value!!
+                                    lastNavigationLocation = currentLastNavigationLocation
+                                    lastRouteProgress = currentLastRouteProgress
+                                    lastLegIndex = navigationViewModel.lastLegIndex.value
+                                        ?: lastRouteProgress.legIndex()
+                                    lastStepIndex = navigationViewModel.lastStepIndex.value
+                                        ?: lastRouteProgress.currentLegProgress()?.stepIndex() ?: 0
+                                    distanceRemaining =
+                                        navigationViewModel.lastDistanceRemaining.value
+                                            ?: lastRouteProgress.distanceRemaining()
+                                    nextStep = navigationViewModel.lastNextStep.value
+                                        ?: lastRouteProgress.currentLegProgress()?.upComingStep()
+                                    currentStep = (navigationViewModel.lastCurrentStep.value
+                                        ?: lastRouteProgress.currentLegProgress()?.currentStep())!!
 
-                                savedNavigationRouteEngine.let { navLocEngine ->
-                                    navigation.let { navigation ->
-
-                                        val resumeRoute = route ?: return@let
-                                        val resumeNavLoc = lastNavigationLocation ?: return@let
-
-                                        if (resumeNavLoc != null && navLocEngine != null && lastRouteProgress != null && lastNavigationLocation != null) {
+                                    savedNavigationRouteEngine.let { navLocEngine ->
+                                        navigation.let { navigation ->
                                             navigationProgressChangeListener.let { naviRouteProgressListener ->
+                                                naviRouteProgressListener.onProgressChange(lastNavigationLocation, lastRouteProgress)
                                                 navigation?.locationEngine = navLocEngine
                                                 navigation?.addProgressChangeListener(
                                                     naviRouteProgressListener
                                                 )
-                                                if (resumeRoute != null) {
-                                                    navigation?.startNavigation(resumeRoute)
-                                                }
-                                                gpsLocationListenerUpdated.onLocationChanged(resumeNavLoc)
+                                                gpsLocationListenerUpdated.onLocationChanged(
+                                                    lastNavigationLocation!!
+                                                )
                                             }
                                         }
                                     }
                                 }
-                            }
 
-                            if (isDataVisible) {
-                                saveStatus(true)
+                                if (isDataVisible) {
+                                    saveStatus(true)
+                                } else {
+                                    saveStatus(false)
+                                    routeOverview.visibility = View.INVISIBLE
+                                    routeNavigationCurrentSpeed.visibility = View.INVISIBLE
+                                    btnRecenterPosition.visibility = View.VISIBLE
+                                }
+
+                                onBackPressedDispatcher.addCallback(backToStartMapView)
                             } else {
-                                saveStatus(false)
-                                routeOverview.visibility = View.INVISIBLE
-                                routeNavigationCurrentSpeed.visibility = View.INVISIBLE
-                                btnRecenterPosition.visibility = View.VISIBLE
-                            }
 
-                            onBackPressedDispatcher.addCallback(backToStartMapView)
+                                route = navigationViewModel.currentRoute.value!!
+
+                                demoLocationEngine = ReplayRouteLocationEngine()
+
+                                val currentLastRouteProgress: RouteProgress? =
+                                    navigationViewModel.lastRouteProgress.value
+                                val currentLastNavigationLocation: Location? =
+                                    navigationViewModel.currentLocation.value
+
+                                if (navigation != null && currentLastRouteProgress != null && currentLastNavigationLocation != null) {
+                                    navigation =
+                                        navigationViewModel.navigationTurnByTurnData.value!!
+                                    lastNavigationLocation = currentLastNavigationLocation
+                                    lastRouteProgress = currentLastRouteProgress
+                                    lastLegIndex = navigationViewModel.lastLegIndex.value
+                                        ?: lastRouteProgress.legIndex()
+                                    lastStepIndex = navigationViewModel.lastStepIndex.value
+                                        ?: lastRouteProgress.currentLegProgress()?.stepIndex() ?: 0
+                                    distanceRemaining =
+                                        navigationViewModel.lastDistanceRemaining.value
+                                            ?: lastRouteProgress.distanceRemaining()
+                                    nextStep = navigationViewModel.lastNextStep.value
+                                        ?: lastRouteProgress.currentLegProgress()?.upComingStep()
+                                    currentStep = (navigationViewModel.lastCurrentStep.value
+                                        ?: lastRouteProgress.currentLegProgress()?.currentStep())!!
+
+                                    demoLocationEngine.let { demoNavEngine ->
+                                        navigation.let { navigation ->
+                                            navigationProgressChangeListener.let { demoNaviRouteProgressListener ->
+                                                demoNaviRouteProgressListener.onProgressChange(lastNavigationLocation, lastRouteProgress)
+                                                val lastPoint = Point.fromLngLat(
+                                                    lastNavigationLocation!!.longitude,
+                                                    lastNavigationLocation!!.latitude
+                                                )
+                                                navigation?.locationEngine = demoNavEngine
+                                                navigation?.addProgressChangeListener(
+                                                    demoNaviRouteProgressListener
+                                                )
+                                                demoNavEngine.moveTo(lastPoint)
+                                                gpsLocationListenerUpdated.onLocationChanged(
+                                                    lastNavigationLocation!!
+                                                )
+                                            }
+                                        }
+                                    }
+                                }
+
+                                if (isDataVisible) {
+                                    saveStatus(true)
+                                } else {
+                                    saveStatus(false)
+                                    routeOverview.visibility = View.INVISIBLE
+                                    routeNavigationCurrentSpeed.visibility = View.INVISIBLE
+                                    btnRecenterPosition.visibility = View.VISIBLE
+                                }
+
+                                onBackPressedDispatcher.addCallback(backToStartMapView)
+                            }
                         } else {
-
-                            route = navigationViewModel.currentRoute.value!!
-
-                            demoLocationEngine = navigationViewModel.replayRouteLocationEngine.value!!
-                            demoLocationEngine = ReplayRouteLocationEngine()
-
-                            val savedRouteProgress: RouteProgress? = navigationViewModel.lastRouteProgress.value
-                            val savedNavigationPosition: Location? = navigationViewModel.currentLocation.value
-
-                            val resumeDemoRoute = route ?: return@runOnUiThread
-
-                            if (navigation != null && savedRouteProgress != null && savedNavigationPosition != null) {
-                                navigation = navigationViewModel.navigationTurnByTurnData.value!!
-                                lastNavigationLocation = savedNavigationPosition
-                                lastRouteProgress = savedRouteProgress
-                                lastLegIndex = navigationViewModel.lastLegIndex.value ?: lastRouteProgress.legIndex()
-                                lastStepIndex = navigationViewModel.lastStepIndex.value ?: lastRouteProgress.currentLegProgress()?.stepIndex() ?: 0
-                                distanceRemaining = navigationViewModel.lastDistanceRemaining.value ?: lastRouteProgress.distanceRemaining()
-                                nextStep = navigationViewModel.lastNextStep.value ?: lastRouteProgress.currentLegProgress()?.upComingStep()
-                                currentStep = (navigationViewModel.lastCurrentStep.value ?: lastRouteProgress.currentLegProgress()?.currentStep())!!
-
-                                val resumeDemoNavLoc = lastNavigationLocation ?: return@runOnUiThread
-
-                                demoLocationEngine.let { demoNavEngine ->
-                                    navigation.let { navigation ->
-                                        navigationProgressChangeListener.let { demoNaviRouteProgressListener ->
-                                            navigation?.locationEngine = demoNavEngine
-                                            navigation?.addProgressChangeListener(
-                                                demoNaviRouteProgressListener
-                                            )
-                                            val lastPoint = Point.fromLngLat(
-                                                resumeDemoNavLoc.longitude,
-                                                resumeDemoNavLoc.latitude
-                                            )
-                                            demoNavEngine.moveTo(lastPoint)
-                                            if (resumeDemoRoute != null) {
-                                                demoNavEngine.assign(resumeDemoRoute)
-                                                navigation?.startNavigation(resumeDemoRoute)
-                                            }
-                                            gpsLocationListenerUpdated.onLocationChanged(resumeDemoNavLoc)
-                                        }
-                                    }
-                                }
-                            }
-
-                            if (isDataVisible) {
-                                saveStatus(true)
-                            } else {
-                                saveStatus(false)
-                                routeOverview.visibility = View.INVISIBLE
-                                routeNavigationCurrentSpeed.visibility = View.INVISIBLE
-                                btnRecenterPosition.visibility = View.VISIBLE
-                            }
-
-                            onBackPressedDispatcher.addCallback(backToStartMapView)
+                            navigation?.addOffRouteListener(offRouteListener)
                         }
                     }
                 }
@@ -819,8 +836,6 @@ class MapActivity : AppCompatActivity(), LifecycleOwner {
 
             }
         }
-
-        mapView.onCreate(null)
 
         // Mengambil nilai pixel dari dimens yang otomatis menyesuaikan orientasi
         pLeft = resources.getDimensionPixelSize(R.dimen.mapbox_padding_left)
@@ -1007,15 +1022,15 @@ class MapActivity : AppCompatActivity(), LifecycleOwner {
     }
 
     private val gpsLocationListenerUpdated = object : LocationListener {
+        @SuppressLint("SetTextI18n")
         override fun onLocationChanged(location: Location) {
             if (!isNavigationTurnByTurnMode) {
                 navigationlocation = location
-                val currentNavigationLocation = navigationlocation ?: return
 
-                locationSmoothAnimator?.animateToNewLocation(currentNavigationLocation)
+                locationSmoothAnimator?.animateToNewLocation(navigationlocation!!)
 
                 speedNavigationInKph.text =
-                    "${(currentNavigationLocation.speed * 3.6).toInt()}      km/h"
+                    "${(navigationlocation!!.speed * 3.6).toInt()}      km/h"
             }
         }
     }
@@ -1281,13 +1296,14 @@ class MapActivity : AppCompatActivity(), LifecycleOwner {
                     routeList = directionsResponse.routes()
                     route = routeList[currentRouteIndex]
 
-                    val navigationRoute = route ?: return@fetchOsrmRoute
-
                     runOnUiThread {
                         loadRoutes()
 
-                        navigationViewModel.setRouteAlt(routeList)
-                        navigationViewModel.setRoute(navigationRoute)
+                        val activeAltRoute = routeList
+                        val activeNaviRoute = route ?: return@runOnUiThread
+
+                        navigationViewModel.setRouteAlt(activeAltRoute)
+                        navigationViewModel.setRoute(activeNaviRoute)
                     }
                 }
             }
@@ -1433,7 +1449,7 @@ class MapActivity : AppCompatActivity(), LifecycleOwner {
         val currentDemoLocationEngine = demoLocationEngine
 
         if (currentDemoLocationEngine != null) {
-            route = navigationViewModel.currentRoute.value!!
+            route = navigationViewModel.currentRoute.value
             val activeDemoNaviRoute = route ?: return
 
             navigation?.locationEngine = currentDemoLocationEngine
@@ -1461,7 +1477,7 @@ class MapActivity : AppCompatActivity(), LifecycleOwner {
         val currentLocationEngine = navigationLocationEngine
 
         if (currentLocationEngine != null) {
-            route = navigationViewModel.currentRoute.value!!
+            route = navigationViewModel.currentRoute.value
             val activeNaviRoute = route ?: return
 
             navigation?.locationEngine = currentLocationEngine
@@ -1499,6 +1515,7 @@ class MapActivity : AppCompatActivity(), LifecycleOwner {
             nextStep = lastRouteProgress.currentLegProgress().upComingStep()
             currentStep = lastRouteProgress.currentLegProgress().currentStep()
 
+
             navigationViewModel.updateLastRouteProgress(
                 lastRouteProgress,
                 lastLegIndex,
@@ -1508,7 +1525,7 @@ class MapActivity : AppCompatActivity(), LifecycleOwner {
                 currentStep
             )
 
-            navigationViewModel.updateLocation(lastNavigationLocation!!, lastNavigationLocation!!.latitude, lastNavigationLocation!!.longitude, lastNavigationLocation!!.bearing)
+            navigationViewModel.updateLocation(lastNavigationLocation!!)
 
             // Inisialisasi sekali di onCreate()
             val maneuverBannerManager = ManeuverBannerManager(
@@ -1572,24 +1589,13 @@ class MapActivity : AppCompatActivity(), LifecycleOwner {
                 directionsEta.text = "${timeNow}"
 
                 runOnUiThread {
-                    if (distanceRemaining >= 0 && lastLegIndex >= 0 && lastStepIndex >= 0 && nextStep != null && currentStep != null) {
-                        var currentNaviLocRoute = lastNavigationLocation ?: return@runOnUiThread
+                    lastNavigationLocation = navigationViewModel.currentLocation.value
 
-                        currentNaviLocRoute =
-                            navigationViewModel.currentLocation.value ?: location
-                        currentNaviLocRoute.latitude =
-                            navigationViewModel.currentLocationLat.value
-                        currentNaviLocRoute.longitude =
-                            navigationViewModel.currentLocationLng.value
-                        currentNaviLocRoute.bearing =
-                            navigationViewModel.currentLocationBearing.value
-
-                        locationSmoothAnimator?.animateToNewLocation(
-                            currentNaviLocRoute
-                        )
-                        routeNavigationCurrentSpeed.text =
-                            "${(currentNaviLocRoute.speed * 3.6).toInt()}      km/h"
-                    }
+                    locationSmoothAnimator?.animateToNewLocation(
+                        lastNavigationLocation!!
+                    )
+                    routeNavigationCurrentSpeed.text =
+                        "${(lastNavigationLocation!!.speed * 3.6).toInt()}      km/h"
                 }
 
                 val targetStep = nextStep
@@ -1667,17 +1673,11 @@ class MapActivity : AppCompatActivity(), LifecycleOwner {
 
                 // 5. PEMICU SUARA ADAPTIF & DINAMIS (Berdasarkan Kecepatan Nyata Kendaraan)
                 if (announcement.isNotEmpty()) {
-                    var currentNaviLocRoute = lastNavigationLocation ?: return
-
-                    if (distanceRemaining >= 0 && lastLegIndex >= 0 && lastStepIndex >= 0 && nextStep != null && currentStep != null) {
-
-                        currentNaviLocRoute =
-                            navigationViewModel.currentLocation.value ?: location
-                    }
+                    lastNavigationLocation = navigationViewModel.currentLocation.value
 
                     // Ambil kecepatan saat ini dalam m/s (meter per detik) dari objek location Anda
                     // Jika location null, berikan default kecepatan kota standar 30 km/jam (~8.3 m/s)
-                    val speedMetersPerSecond = currentNaviLocRoute?.speed ?: 8.3f
+                    val speedMetersPerSecond = lastNavigationLocation?.speed ?: 8.3f
 
                     /*
                     * Logika Waktu Reaksi (Waktu Mengemudi Menuju Belokan):
@@ -1730,42 +1730,67 @@ class MapActivity : AppCompatActivity(), LifecycleOwner {
         override fun userOffRoute(location: Location?) {
 
             if (isNavigationTurnByTurnMode) {
-                var currentNaviLocRoute = lastNavigationLocation ?: return
+                runOnUiThread {
+                    if (!isSimulationMode) {
+                        navigationViewModel.clearNavigationEngine()
+                    } else {
+                        navigationViewModel.clearDemoNavigationEngine()
+                    }
 
-                // Fungsi ini OTOMATIS dipicu oleh Core Engine saat GPS melenceng dari garis rute
-                originLat = currentNaviLocRoute.latitude
-                originLng = currentNaviLocRoute.longitude
+                    navigationViewModel.clearLocationData()
+                    navigationViewModel.clearNavigationData()
+                    navigationViewModel.clearLastRouteProgress()
+                    navigationViewModel.clearRoute()
+                    navigationViewModel.clearRouteAlt()
+                    routeRestoredList.clear()
+                    navigationMapRoute?.removeRoute()
+                    navigation?.stopNavigation() // Hentikan pelacakan rute lama
+                }
 
-                osrmBaseUrl =
-                    "http://router.project-osrm.org/" // Ganti dengan URL server OSRM Anda
-                user = "route/v1/"
-                vehicle = "driving/"
-                url =
-                    "${osrmBaseUrl}${user}${vehicle}${originLng},${originLat};${destinationLng},${destinationLat}?steps=true&alternatives=true&geometries=polyline6&overview=full&annotations=duration,distance"
+                val iconManeuver = findViewById<ImageView>(R.id.icon_maneuver_directions)
+                val tvDistance = findViewById<TextView>(R.id.maneuver_directions_distance)
+                val tvStreetName = findViewById<TextView>(R.id.maneuver_directions_streetname)
 
-                fetchOsrmRoute(url) { responseRoutes ->
-                    if (responseRoutes != null && responseRoutes.routes().isNotEmpty()) {
+                iconManeuver.setImageResource(R.drawable.ic_menu_vehicle_profile_settings)
+                routeOverview.visibility = View.INVISIBLE
 
-                        routeList = responseRoutes.routes()
-                        route = routeList[currentRouteIndex]
-                        val updateNavigationRoute = route ?: return@fetchOsrmRoute
+                tvDistance.text = getString(R.string.navigation_recalculating_route)
+                tvStreetName.text = ""
 
-                        runOnUiThread {
+                recalculatingRouteRunnable?.let { recalculatingRouteHandler.removeCallbacks(it) }
 
-                            navigation?.stopNavigation() // Hentikan pelacakan rute lama
-                            navigationViewModel.clearRoute()
-                            navigationViewModel.clearRouteAlt()
-                            navigationViewModel.setRouteAlt(routeList)
-                            navigationViewModel.setRoute(updateNavigationRoute)
-                            routeRestoredList.clear()
-                            navigation?.startNavigation(updateNavigationRoute) // Mulai ulang pelacakan dengan rute baru (Kunci Snap Berfungsi Lagi)
+                recalculatingRouteRunnable = Runnable {// Fungsi ini OTOMATIS dipicu oleh Core Engine saat GPS melenceng dari garis rute
+                    originLat = lastNavigationLocation!!.latitude
+                    originLng = lastNavigationLocation!!.longitude
 
-                            // Gambar rute baru di peta buatan Anda
-                            navigationMapRoute?.addRoute(route)
+                    osrmBaseUrl =
+                        "http://router.project-osrm.org/" // Ganti dengan URL server OSRM Anda
+                    user = "route/v1/"
+                    vehicle = "driving/"
+                    url =
+                        "${osrmBaseUrl}${user}${vehicle}${originLng},${originLat};${destinationLng},${destinationLat}?steps=true&alternatives=true&geometries=polyline6&overview=full&annotations=duration,distance"
 
+                    fetchOsrmRoute(url) { responseRoutes ->
+                        if (responseRoutes != null && responseRoutes.routes().isNotEmpty()) {
+
+                            routeList = responseRoutes.routes()
+                            route = routeList[currentRouteIndex]
+                            val updateNavigationRoute = route ?: return@fetchOsrmRoute
+
+                            runOnUiThread {
+                                navigationViewModel.setRouteAlt(routeList)
+                                navigationViewModel.setRoute(updateNavigationRoute)
+                                // Gambar rute baru di peta buatan Anda
+                                navigationMapRoute?.addRoute(route)
+                                navigation?.startNavigation(updateNavigationRoute) // Mulai ulang pelacakan dengan rute baru (Kunci Snap Berfungsi Lagi)
+
+                                routeOverview.visibility = View.VISIBLE
+                            }
                         }
                     }
                 }
+
+                recalculatingRouteHandler.postDelayed(recalculatingRouteRunnable!!, 3650)
             }
         }
     }
@@ -2081,6 +2106,5 @@ class MapActivity : AppCompatActivity(), LifecycleOwner {
     override fun onDestroy() {
         super.onDestroy();
         mapView.onDestroy()
-        navigation?.onDestroy()
     }
 }

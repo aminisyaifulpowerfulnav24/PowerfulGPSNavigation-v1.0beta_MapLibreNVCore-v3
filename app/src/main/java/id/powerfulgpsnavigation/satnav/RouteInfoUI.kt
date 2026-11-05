@@ -34,7 +34,6 @@ fun MapActivity.RouteDirectionsSummary() {
         isNavigationTurnByTurnMode = true
         isNavigating = true
         navigationViewModel.setNavigationData(demoNavigation)
-        navigationViewModel.setDemoNavigationEngine(demoLocationEngine)
         saveStatus(true)
         toggleLocationSource(true)
         startSimulationRoute()
