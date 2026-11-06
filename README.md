@@ -55,8 +55,6 @@ Translated with DeepL.com (free version)
 ### Portrait screen orientation on Android phone:
 <img width="200" alt="Image" src="https://github.com/user-attachments/assets/5b32f4dd-8cf5-4dd8-ac78-a1669c6f6667" />
 <img width="200" alt="Image" src="https://github.com/user-attachments/assets/dc987eb9-f25f-49a3-8faf-ce892c41b55a" />
-<img width="200" alt="Image" src="https://github.com/user-attachments/assets/30852b22-890a-4721-8e15-44983162a164" />
-<img width="200" alt="Image" src="https://github.com/user-attachments/assets/9f4084dd-7b0f-4e18-8971-9e08605aaee3" />
 <img width="200" alt="Image" src="https://github.com/user-attachments/assets/b299a501-2ef1-4898-8ec4-93c1e7baa839" />
 <img width="200" alt="Image" src="https://github.com/user-attachments/assets/13e5183d-ef29-4433-8f46-b95f0e1e6358" />
 <img width="200" alt="Image" src="https://github.com/user-attachments/assets/70e4882c-4ebb-440a-a09a-7dd0e4387d81" />
@@ -66,8 +64,6 @@ Translated with DeepL.com (free version)
 ### Landscape screen orientation on Android phone:
 <img width="350" alt="Image" src="https://github.com/user-attachments/assets/7e9e885d-e365-4bd4-8275-d519c947a49a" />
 <img width="350" alt="Image" src="https://github.com/user-attachments/assets/2dc81fb7-fa76-4c4a-a49e-052bf22565c1" />
-<img width="350" alt="Image" src="https://github.com/user-attachments/assets/3519af8e-026c-4674-aa67-bdd5c98d4794" />
-<img width="350" alt="Image" src="https://github.com/user-attachments/assets/d4476da4-aa9a-46d4-98f0-3a91a243e8b3" />
 <img width="350" alt="Image" src="https://github.com/user-attachments/assets/d884857a-cd35-441b-925c-02545bda57f7" />
 <img width="350" alt="Image" src="https://github.com/user-attachments/assets/94d2cbcb-2464-4391-a7be-2928e4460695" />
 <img width="350" alt="Image" src="https://github.com/user-attachments/assets/3aef53c6-384e-4977-b0f2-116376e241cf" />
