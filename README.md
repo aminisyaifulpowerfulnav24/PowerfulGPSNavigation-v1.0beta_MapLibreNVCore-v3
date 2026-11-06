@@ -71,5 +71,5 @@ Translated with DeepL.com (free version)
 <img width="350" alt="Image" src="https://github.com/user-attachments/assets/0d5a938d-b1e8-409f-b512-9bce38ea0047" />
 
 
-#### Download PowerfulGPSNavigation_v1.0-beta_MapLibreNVCore-v3_app-debug.apk file link:
-[Download PowerfulGPSNavigation_v1.0-beta_MapLibreNVCore-v3_app-debug.apk file](https://github.com/aminisyaifulpowerfulnav24/PowerfulGPSNavigation_v1.0-beta_MapLibreNVCore/releases/download/powerfulgpsnavigation_v1.0beta_maplibrenvcore_v3/PowerfulGPSNavigation_v1.0-beta_MapLibreNVCore-v3_app-debug.apk)
+#### Download Powerful GPS Navigation v1.0-beta_MapLibreNVCore-v3 pre-release APK file link:
+[PowerfulGPSNavigation_v1.0-beta_MapLibreNVCore-v3_app-debug.apk (pre-release)](https://github.com/aminisyaifulpowerfulnav24/PowerfulGPSNavigation_v1.0-beta_MapLibreNVCore/releases/download/powerfulgpsnavigation_v1.0beta_maplibrenvcore_v3/PowerfulGPSNavigation_v1.0-beta_MapLibreNVCore-v3_app-debug.apk)
