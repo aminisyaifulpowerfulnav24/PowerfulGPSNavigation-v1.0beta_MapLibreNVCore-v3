@@ -1,5 +1,7 @@
 # **Powerful GPS Navigation v1.0-beta_MapLibreNVCore-v3 for Android**
 
+<img width="1920" height="1080" alt="Image" src="https://github.com/user-attachments/assets/b3091634-c738-4a56-b81e-aca0ce817d1a" />
+
 #### EN
 
 **This Powerful GPS Navigation v1.0-beta_MapLibreNVCore-3 app for Android features are already listed**
