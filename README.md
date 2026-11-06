@@ -22,6 +22,9 @@
 5. Route options
 6. Click the banner " Upcoming Instructions " to view the instructions summary, even though the Upcoming Instructions banner is available for turn-by-turn navigation UI
 
+**NOTICE!:**
+This app still has occasional bugs because it is pre-released
+
 
 
 
@@ -44,6 +47,9 @@
 4. mengklik untuk mengubah moda transportasi, meskipun mode mobil dan berjalan kaki sudah tersedia
 5. opsi rute
 6. mengklik spanduk “Petunjuk Selanjutnya” untuk melihat ringkasan petunjuk, meskipun spanduk Petunjuk Selanjutnya sudah tersedia untuk antarmuka navigasi langkah demi langkah
+
+**PEMBERITAHUAN!:**
+Aplikasi ini masih kadang-kadang mengalami bug karena masih dalam tahap pra-rilis
 
 Translated with DeepL.com (free version)
 
