@@ -49,7 +49,7 @@ This app still has occasional bugs because it is pre-released
 6. mengklik spanduk “Petunjuk Selanjutnya” untuk melihat ringkasan petunjuk, meskipun spanduk Petunjuk Selanjutnya sudah tersedia untuk antarmuka navigasi langkah demi langkah
 
 **PEMBERITAHUAN!:**
-Aplikasi ini masih kadang-kadang mengalami bug karena masih dalam tahap pra-rilis
+Aplikasi ini kadang-kadang masih ada yang mengalami bug karena masih dalam tahap pra-rilis
 
 Translated with DeepL.com (free version)
 
