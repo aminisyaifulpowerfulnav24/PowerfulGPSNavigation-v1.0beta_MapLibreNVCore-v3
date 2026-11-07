@@ -88,4 +88,4 @@ Translated with DeepL.com (free version)
 
 
 #### Download Powerful GPS Navigation v1.0-beta_MapLibreNVCore-v3 pre-release APK file link:
-[PowerfulGPSNavigation_v1.0-beta_MapLibreNVCore-v3_app-debug.apk (pre-release)](https://github.com/aminisyaifulpowerfulnav24/PowerfulGPSNavigation_v1.0-beta_MapLibreNVCore/releases/download/powerfulgpsnavigation_v1.0beta_maplibrenvcore_v3/PowerfulGPSNavigation_v1.0-beta_MapLibreNVCore-v3_app-debug.apk)
+[PowerfulGPSNavigation_v1.0-beta_MapLibreNVCore-v3_revision-2_app-debug.apk (pre-release)](https://github.com/aminisyaifulpowerfulnav24/PowerfulGPSNavigation_v1.0-beta_MapLibreNVCore/releases/download/powerfulgpsnavigation_v1.0beta_maplibrenvcore-v3_revision-2/PowerfulGPSNavigation_v1.0-beta_MapLibreNVCore-v3_revision-2_app-debug.apk)
