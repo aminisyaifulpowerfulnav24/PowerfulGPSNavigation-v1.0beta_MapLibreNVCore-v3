@@ -66,7 +66,7 @@ Translated with DeepL.com (free version)
 
 
 
-# Powerful GPS Navigation v1.0-beta_MapLibreNVCore-v3_revision-3 app for Android screenshots
+# Powerful GPS Navigation v1.0-beta_MapLibreNVCore-v3 app for Android screenshots
 
 ### Portrait screen orientation on Android phone:
 <img width="200" alt="Image" src="https://github.com/user-attachments/assets/5b32f4dd-8cf5-4dd8-ac78-a1669c6f6667" />
