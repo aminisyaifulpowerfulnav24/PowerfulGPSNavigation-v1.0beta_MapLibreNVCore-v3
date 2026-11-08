@@ -1,15 +1,15 @@
-# **Powerful GPS Navigation v1.0-beta_MapLibreNVCore-v3_revision-2 for Android**
+# **Powerful GPS Navigation v1.0-beta_MapLibreNVCore-v3_revision-3 for Android**
 
 <img width="1920" height="1080" alt="Image" src="https://github.com/user-attachments/assets/b3091634-c738-4a56-b81e-aca0ce817d1a" />
 
 #### EN
 
 **NOTICE!:
-This Powerful GPS Navigation app for Android has been revised onto 2 time, in part of the navigation service and also in the notification, but that notification does not launch because of notification settings from Android system policy on Android 12+.**
+This Powerful GPS Navigation app for Android has been revised 3 times, in part to lock the screen orientation while recalculating the route in the condition of real-time navigation route (not a simulated route).**
 
 **Revision time: 08/11/2026**
 
-**This Powerful GPS Navigation v1.0-beta_MapLibreNVCore-3_revision-2 app for Android features are already listed**
+**This Powerful GPS Navigation v1.0-beta_MapLibreNVCore-3_revision-3 app for Android features are already listed**
 
 **including:**
 1.  🗺️🧭🆗 Display maps and MapButtonUI
@@ -36,11 +36,11 @@ This app still has occasional bugs because it is pre-released
 #### ID
 
 **PENGUMUMAN!:
-Aplikasi Powerful GPS Navigation untuk Android telah diperbarui sebanyak dua kali, baik pada layanan navigasi maupun pada fitur notifikasi; namun, notifikasi tersebut tidak muncul karena pengaturan notifikasi yang diatur oleh kebijakan sistem Android pada Android 12 ke atas.**
+Aplikasi Powerful GPS Navigation untuk Android ini telah diperbarui sebanyak 3 kali, antara lain untuk mengunci orientasi layar saat menghitung ulang rute dalam kondisi navigasi rute waktu nyata (bukan rute simulasi).**
 
 **Waktu revisi: 08/11/2026**
 
-**Fitur-fitur aplikasi Powerful GPS Navigation v1.0-beta_MapLibreNVCore-v3_revision-2 untuk Android ini sudah tercantum**
+**Fitur-fitur aplikasi Powerful GPS Navigation v1.0-beta_MapLibreNVCore-v3_revision-3 untuk Android ini sudah tercantum**
 
 **termasuk:**
 1.  🗺️🧭🆗 Menampilkan peta dan MapButtonUI
@@ -88,4 +88,4 @@ Translated with DeepL.com (free version)
 
 
 #### Download Powerful GPS Navigation v1.0-beta_MapLibreNVCore-v3 pre-release APK file link:
-[PowerfulGPSNavigation_v1.0-beta_MapLibreNVCore-v3_revision-2_app-debug.apk (pre-release)](https://github.com/aminisyaifulpowerfulnav24/PowerfulGPSNavigation_v1.0-beta_MapLibreNVCore/releases/download/powerfulgpsnavigation_v1.0beta_maplibrenvcore-v3_revision-2/PowerfulGPSNavigation_v1.0-beta_MapLibreNVCore-v3_revision-2_app-debug.apk)
+[Powerful GPS Navigation v1.0-beta_MapLibreNVCore-v3_revision-3 for Android (pre-release)](https://github.com/aminisyaifulpowerfulnav24/PowerfulGPSNavigation_v1.0-beta_MapLibreNVCore/releases/download/powerfulgpsnavigation_v1.0beta_maplibrenvcore-v3_revision-3/PowerfulGPSNavigation_v1.0-beta_MapLibreNVCore-v3_revision-3_app-debug.apk)
