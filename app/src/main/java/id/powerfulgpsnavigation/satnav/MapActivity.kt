@@ -669,45 +669,43 @@ class MapActivity : AppCompatActivity(), LifecycleOwner {
 
                 if (isNavigationTurnByTurnMode) {
                     runOnUiThread {
-                        if (routeList != null) {
-                            routeList = navigationViewModel.currentRouteAlt.value!!
+
+                        val activeRouteList = navigationViewModel.currentRoute.value
+
+                        if (activeRouteList != null) {
+                            routeList = listOf(activeRouteList)
 
                             navigationMapRoute?.addRoutes(routeList)
 
                             if (!isSimulationMode) {
-                                route = navigationViewModel.currentRoute.value!!
+                                val activeRoute = navigationViewModel.currentRoute.value
 
                                 val currentLastRouteProgress: RouteProgress? =
                                     navigationViewModel.lastRouteProgress.value
                                 val currentLastNavigationLocation: Location? =
                                     navigationViewModel.currentLocation.value
 
-                                if (navigation != null && currentLastRouteProgress != null && currentLastNavigationLocation != null) {
-                                    navigation =
-                                        navigationViewModel.navigationTurnByTurnData.value!!
+                                val currentNavTurnByTurnData = navigationViewModel.navigationTurnByTurnData.value
+
+                                if (activeRoute != null && navigation != null && currentLastRouteProgress != null && currentLastNavigationLocation != null && currentNavTurnByTurnData != null) {
+                                    route = activeRoute
+                                    navigation = currentNavTurnByTurnData
                                     lastNavigationLocation = currentLastNavigationLocation
                                     lastRouteProgress = currentLastRouteProgress
-                                    lastLegIndex = navigationViewModel.lastLegIndex.value
-                                        ?: lastRouteProgress.legIndex()
-                                    lastStepIndex = navigationViewModel.lastStepIndex.value
-                                        ?: lastRouteProgress.currentLegProgress()?.stepIndex() ?: 0
+                                    lastLegIndex = navigationViewModel.lastLegIndex.value ?: lastRouteProgress.legIndex()
+                                    lastStepIndex = navigationViewModel.lastStepIndex.value ?: lastRouteProgress.currentLegProgress()?.stepIndex() ?: 0
                                     distanceRemaining =
-                                        navigationViewModel.lastDistanceRemaining.value
-                                            ?: lastRouteProgress.distanceRemaining()
-                                    nextStep = navigationViewModel.lastNextStep.value
-                                        ?: lastRouteProgress.currentLegProgress()?.upComingStep()
-                                    currentStep = (navigationViewModel.lastCurrentStep.value
-                                        ?: lastRouteProgress.currentLegProgress()?.currentStep())!!
+                                        navigationViewModel.lastDistanceRemaining.value ?: lastRouteProgress.distanceRemaining()
+                                    nextStep = navigationViewModel.lastNextStep.value ?: lastRouteProgress.currentLegProgress()?.upComingStep()
+                                    currentStep = (navigationViewModel.lastCurrentStep.value ?: lastRouteProgress.currentLegProgress()?.currentStep())!!
 
-                                    navigation.let { navigation ->
+                                    navigation?.let { navigation ->
                                         navigationProgressChangeListener.let { naviRouteProgressListener ->
                                             naviRouteProgressListener.onProgressChange(lastNavigationLocation, lastRouteProgress)
-                                            navigation?.addProgressChangeListener(
+                                            navigation.addProgressChangeListener(
                                                 naviRouteProgressListener
                                             )
-                                            gpsLocationListenerUpdated.onLocationChanged(
-                                                lastNavigationLocation!!
-                                            )
+                                            navigation.addOffRouteListener(offRouteListener)
                                         }
                                     }
                                 }
@@ -721,8 +719,6 @@ class MapActivity : AppCompatActivity(), LifecycleOwner {
                                     btnRecenterPosition.visibility = View.VISIBLE
                                 }
                             }
-                        } else {
-                            navigation?.addOffRouteListener(offRouteListener)
                         }
 
                         onBackPressedDispatcher.addCallback(backToStartMapView)
@@ -1663,14 +1659,28 @@ class MapActivity : AppCompatActivity(), LifecycleOwner {
 
             if (isNavigationTurnByTurnMode) {
                 runOnUiThread {
-                    navigationViewModel.clearLocationData()
-                    navigationViewModel.clearNavigationData()
                     navigationViewModel.clearLastRouteProgress()
                     navigationViewModel.clearRoute()
                     navigationViewModel.clearRouteAlt()
                     routeRestoredList.clear()
                     navigationMapRoute?.removeRoute()
                     navigation?.stopNavigation() // Hentikan pelacakan rute lama
+
+                    routeOverview.visibility = View.INVISIBLE
+
+                    if (!isSimulationMode) {
+                        // 1. Cek orientasi layar saat ini
+                        val currentOrientation = resources.configuration.orientation
+
+                        // 2. Gunakan percabangan IF untuk mengunci posisi tersebut
+                        if (currentOrientation == Configuration.ORIENTATION_LANDSCAPE) {
+                            // Jika sedang mendatar, kunci di posisi landscape
+                            requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
+                        } else if (currentOrientation == Configuration.ORIENTATION_PORTRAIT) {
+                            // Jika sedang tegak, kunci di posisi portrait
+                            requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+                        }
+                    }
                 }
 
                 val iconManeuver = findViewById<ImageView>(R.id.icon_maneuver_directions)
@@ -1678,7 +1688,6 @@ class MapActivity : AppCompatActivity(), LifecycleOwner {
                 val tvStreetName = findViewById<TextView>(R.id.maneuver_directions_streetname)
 
                 iconManeuver.setImageResource(R.drawable.ic_menu_vehicle_profile_settings)
-                routeOverview.visibility = View.INVISIBLE
 
                 tvDistance.text = getString(R.string.navigation_recalculating_route)
                 tvStreetName.text = ""
@@ -1711,6 +1720,19 @@ class MapActivity : AppCompatActivity(), LifecycleOwner {
                                 navigation?.startNavigation(updateNavigationRoute) // Mulai ulang pelacakan dengan rute baru (Kunci Snap Berfungsi Lagi)
 
                                 routeOverview.visibility = View.VISIBLE
+
+                                if (!isSimulationMode) {
+                                    val currentOrientation = resources.configuration.orientation
+
+                                    // 2. Gunakan percabangan IF untuk mengunci posisi tersebut
+                                    if (currentOrientation == Configuration.ORIENTATION_LANDSCAPE) {
+                                        // Jika sedang mendatar, kunci di posisi landscape
+                                        requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
+                                    } else if (currentOrientation == Configuration.ORIENTATION_PORTRAIT) {
+                                        // Jika sedang tegak, kunci di posisi portrait
+                                        requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
+                                    }
+                                }
                             }
                         }
                     }
