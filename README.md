@@ -66,7 +66,7 @@ Translated with DeepL.com (free version)
 
 
 
-# Powerful GPS Navigation v1.0-beta_MapLibreNVCore-v3 app for Android screenshots
+# Powerful GPS Navigation v1.0-beta_MapLibreNVCore-v3_revision-3 app for Android screenshots
 
 ### Portrait screen orientation on Android phone:
 <img width="200" alt="Image" src="https://github.com/user-attachments/assets/5b32f4dd-8cf5-4dd8-ac78-a1669c6f6667" />
@@ -87,5 +87,5 @@ Translated with DeepL.com (free version)
 <img width="350" alt="Image" src="https://github.com/user-attachments/assets/0d5a938d-b1e8-409f-b512-9bce38ea0047" />
 
 
-#### Download Powerful GPS Navigation v1.0-beta_MapLibreNVCore-v3 pre-release APK file link:
+#### Download Powerful GPS Navigation v1.0-beta_MapLibreNVCore-v3_revision-3 pre-release APK file link:
 [Powerful GPS Navigation v1.0-beta_MapLibreNVCore-v3_revision-3 for Android (pre-release)](https://github.com/aminisyaifulpowerfulnav24/PowerfulGPSNavigation_v1.0-beta_MapLibreNVCore/releases/download/powerfulgpsnavigation_v1.0beta_maplibrenvcore-v3_revision-3/PowerfulGPSNavigation_v1.0-beta_MapLibreNVCore-v3_revision-3_app-debug.apk)
